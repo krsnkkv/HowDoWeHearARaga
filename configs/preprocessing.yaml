@@ -1,6 +1,6 @@
 dataset_name: saraga_carnatic
 sample_rate: 22050
-segment_seconds: 15.0
-hop_seconds: 5.0
+segment_seconds: 45.0
+hop_seconds: 15.0
 max_tracks: 20          # keep small for tonight; bump later
 trim_silence: false
