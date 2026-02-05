@@ -4,3 +4,11 @@ matplotlib
 librosa
 soundfile
 scipy
+
+pandas
+
+
+
+tqdm
+pyyaml
+mirdata
