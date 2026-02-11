@@ -40,13 +40,18 @@ The RagaRecognize pipeline consists of the following stages:
    - Model training: Train HMM and SVM models using the extracted features.
    - Raga prediction: Classify the input audio into the most likely rāga based on the trained models.
 
+4. **Frontend and Visualization**:
+   - User interface: Develop an intuitive frontend using Streamlit for audio upload and analysis.
+   - Visualization: Display pitch contours, tonic estimation, swara mapping, and rāga predictions.
+   - Raga information: Provide educational content about the identified rāga, including characteristic phrases and cultural context.
+
 ## Getting Started
 
 To run the RagaRecognize system locally, follow these steps:
 
 1. Clone the repository:
 ```
-   git clone https://github.com/your-username/RagaRecognize.git
+   git clone https://github.com/kxk224/RagaRecognize.git
 ```
 
 2. Install the required dependencies:
@@ -80,7 +85,68 @@ To run the RagaRecognize system locally, follow these steps:
 
 ## Weekly Plan
 
-[Include the updated weekly plan here]
+### Week 1: Setup and Reproducibility
+
+- Finalise the repository structure and documentation
+- Define dataset selection criteria and shortlist suitable datasets
+- Implement a preprocessing pipeline to load audio, trim recordings, segment clips, and store metadata
+
+Deliverable: A reproducible preprocessing pipeline with sample outputs and metadata files
+
+### Week 2: Pitch Tracking Baseline
+
+- Implement pitch extraction using `librosa.pyin`
+- Generate pitch contour plots and voiced probability visualisations
+- Manually validate results on a small set of audio clips
+
+Deliverable: A pitch tracking module with visual diagnostics for validation
+
+### Week 3: Tonic (Sa) Estimation Baseline
+
+- Implement a baseline tonic estimation method using pitch distribution analysis
+- Introduce a confidence score for the estimated tonic
+- Evaluate results on a small subset with manual sanity checks
+
+Deliverable: A tonic estimation module producing `sa_hz` values with confidence scores
+
+### Week 4: Swara Mapping (Version 1)
+
+- Convert pitch values to relative intervals with respect to the estimated tonic
+- Implement a soft mapping strategy with tolerance for ornamentation and pitch glides
+- Generate time-aligned swara traces for selected clips
+
+Deliverable: A swara mapping module with visual swara-time representations
+
+### Week 5: Pattern and Sequence Features
+
+- Compute transition matrices and n-gram features for swara sequences
+- Extract basic phrase-level statistics such as frequent transitions
+- Construct feature vectors for each audio clip
+
+Deliverable: A feature extraction module and a saved dataset of extracted features
+
+### Week 6: Baseline Classification
+
+- Train a simple classification model such as logistic regression or SVM using extracted features
+- Perform cross-validation and generate confusion matrices
+
+Deliverable: A baseline rāga classifier with quantitative performance metrics
+
+### Week 7: End-to-End Integration and Interface Demo
+
+- Integrate all pipeline components into a single end-to-end system
+- Build a Streamlit interface to upload audio and visualise tonic, pitch, swaras, patterns, and top candidate rāgas
+- Handle low-confidence predictions gracefully
+
+Deliverable: A stable end-to-end demo suitable for inspection and discussion
+
+### Week 8: Evaluation and Report Refinement
+
+- Conduct error analysis to identify common confusions between rāgas
+- Refine segmentation and smoothing parameters based on evaluation results
+- Update documentation and prepare a supervisor-ready progress summary
+
+Deliverable: An evaluation summary and a refined baseline system
 
 ## Project Report
 
