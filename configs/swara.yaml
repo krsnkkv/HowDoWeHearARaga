@@ -1,0 +1,18 @@
+# Swara bin positions in cents relative to Sa
+# Standard Carnatic 12-tone positions
+bins:
+  Sa:  0
+  Ri1: 100    # Shuddha Rishabham
+  Ri2: 200    # Chatushruti Rishabham
+  Ga1: 300    # Sadharana Gandharam
+  Ga2: 400    # Antara Gandharam
+  Ma1: 500    # Shuddha Madhyamam
+  Ma2: 600    # Prati Madhyamam
+  Pa:  700    # Panchamam (fixed)
+  Da1: 800    # Shuddha Dhaivatam
+  Da2: 900    # Chatushruti Dhaivatam
+  Ni1: 1000   # Kaisiki Nishadam
+  Ni2: 1100   # Kakali Nishadam
+
+tolerance_cents: 40       # frames further than this from any bin → "glide"
+min_duration_ms: 100      # swara labels shorter than this → "glide"
