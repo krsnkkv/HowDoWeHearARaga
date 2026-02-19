@@ -4,32 +4,45 @@
 Loads Saraga Carnatic tracks via mirdata, filters to tracks with
 raga labels + tonic annotations, segments audio, and writes metadata CSV.
 
-Usage:
+Commands for runningg:
     python scripts/01_preprocess.py
     python scripts/01_preprocess.py --min-tracks-per-raga 5   # stricter filter
+
+
+Loads the Saraga Carnatic Dataset
+Filter tracks - Valid raga label + GT tonic annotation + Audio Files + Not Ragamalika + N Tracks
+Preprocessing parameters loaded 
+Resampling to fixed rate
+Optionally trims leading/trailing silence
+Splits each track into overlapping fixed length segments
+Saves each segment as .wav
+CSV File: Track ID, Raga label, GT Tonic, Segment index and timestamps, File path to segment
+
+
 """
-import os
-import csv
-import yaml
-import argparse
-from pathlib import Path
-from collections import Counter
+import os #Used for setting environment variables
+import csv #CSV Files writing
+import yaml #Config files
+import argparse #Command line flags like --min-tracks-per-raga
+from pathlib import Path #Path finder handler
+from collections import Counter # Counts 
 
-import librosa
-import soundfile as sf
-import mirdata
-from tqdm import tqdm
+import librosa #Loads audio and Silences
+import soundfile as sf #.WAV file writer
+import mirdata #Loads SARAGA
+from tqdm import tqdm #Progress bar for loops (Console)
 
-
+#Loads YAML file that contains preprocessing settings
+# Returns a dict with config values
 def load_cfg(cfg_path: str) -> dict:
     with open(cfg_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-
+#Script finds repo root consistently
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
-
+#Ensuresa directory exists - creates parent folders if folde rdoesnt exist
 def ensure_dirs(*paths: Path) -> None:
     for p in paths:
         p.mkdir(parents=True, exist_ok=True)
@@ -37,7 +50,7 @@ def ensure_dirs(*paths: Path) -> None:
 
 def get_usable_tracks(ds, min_tracks_per_raga: int = 3):
     """
-    Filter to tracks that have:
+    Filters to tracks that have:
       - raga label (non-empty)
       - tonic annotation
       - audio file
@@ -81,6 +94,9 @@ def get_usable_tracks(ds, min_tracks_per_raga: int = 3):
         })
 
     # Filter to ragas with enough tracks
+
+    # two stage filder: counting tracks per raga using counter, then keeping ones with min_tracks_per_raga or more
+    # filter candidates down to only those with valid ragas
     raga_counts = Counter(c["raga"] for c in candidates)
     valid_ragas = {r for r, count in raga_counts.items() if count >= min_tracks_per_raga}
 
