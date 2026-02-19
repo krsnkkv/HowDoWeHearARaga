@@ -4,6 +4,33 @@
 Converts pitch contours to swara (note) labels relative to the tonic (Sa).
 Uses ground-truth tonic by default; can use estimated tonic with --use-estimated.
 
+Takes pitch contour/F0 and converts to Swara Labels relative to SA
+Loads per segment files from pitch_all.csv -> .npz
+Chooses tonic - cents relative to SA ; Assigns each frame to nearest swara bin
+If within tolerance: Glide 
+Minimum duration filter to prevent rapid flickering
+Saves per segment swara track as .npz, writes summary CSV and optionally 
+generates diagnositc plots showing cents countour with swara labels
+
+For each segment:
+
+Picking Sa (GT or estimated)
+
+Loading pitch_npz and reading f0, sr, hop_length
+
+Converting voiced frames to cents relative to Sa (mod 1200)
+
+Mapping frames to the nearest swara bin within a tolerance; else "glide"; NaNs become "silence"
+
+Applying minimum duration filtering (short swara runs → glide)
+
+Saving data/processed/swara/<track>__<seg>_swara.npz
+
+Writing data/processed/swara_all.csv with glide ratio, top swara, etc.
+
+Saving debug plots to outputs/figures/swara_debug/
+
+
 Usage:
     python scripts/04_swara_mapping.py                     # use GT tonic
     python scripts/04_swara_mapping.py --use-estimated     # use estimated tonic
