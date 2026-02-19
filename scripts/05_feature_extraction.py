@@ -1,13 +1,15 @@
 """
-05_feature_extraction.py — Stage 5: Sequence & Distribution Features
+05_feature_extraction.py — Stage 5: Feature Extraction (v2)
 
-Extracts three feature representations from swara traces:
+Extracts FOUR feature representations:
   1. Transition matrix (12×12 = 144 features)
-  2. N-gram counts (bigram, trigram, 4-gram)
+  2. N-gram counts (bigram + top-200 trigrams)
   3. Pitch Class Distribution (PCD) — 120-bin histogram
+  4. MFCCs + chroma + spectral features (standard audio ML baseline)
 
 Usage:
     python scripts/05_feature_extraction.py
+    python scripts/05_feature_extraction.py --plot-n 5
 """
 import argparse
 from pathlib import Path
@@ -16,6 +18,7 @@ from itertools import product as iter_product
 import numpy as np
 import pandas as pd
 import yaml
+import librosa
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -36,7 +39,7 @@ def load_cfg(cfg_path: str) -> dict:
         return yaml.safe_load(f)
 
 
-# ── Swara names (must match swara.yaml) ──────────────────────────
+# ── Swara definitions ────────────────────────────────────────────
 
 SWARA_NAMES = ["Sa", "Ri1", "Ri2", "Ga1", "Ga2", "Ma1", "Ma2",
                "Pa", "Da1", "Da2", "Ni1", "Ni2"]
@@ -44,19 +47,14 @@ SWARA_TO_IDX = {s: i for i, s in enumerate(SWARA_NAMES)}
 N_SWARAS = len(SWARA_NAMES)
 
 
-# ── Feature extraction functions ─────────────────────────────────
+# ── Swara-based feature functions ────────────────────────────────
 
 def get_swara_token_sequence(swara_labels: np.ndarray) -> list:
-    """
-    Convert frame-level swara labels into a token sequence.
-    Collapses consecutive identical labels into single tokens.
-    Removes 'silence' and 'glide' tokens for clean n-gram analysis.
-    """
     tokens = []
     prev = None
     for label in swara_labels:
         if label in ("silence", "glide"):
-            prev = None  # break continuity
+            prev = None
             continue
         if label != prev:
             tokens.append(label)
@@ -65,36 +63,24 @@ def get_swara_token_sequence(swara_labels: np.ndarray) -> list:
 
 
 def compute_transition_matrix(tokens: list) -> np.ndarray:
-    """
-    Compute a 12×12 swara transition matrix from a token sequence.
-    Normalized per row (transition probabilities).
-    """
     mat = np.zeros((N_SWARAS, N_SWARAS), dtype=np.float64)
-
     for i in range(len(tokens) - 1):
         src = SWARA_TO_IDX.get(tokens[i])
         dst = SWARA_TO_IDX.get(tokens[i + 1])
         if src is not None and dst is not None:
             mat[src, dst] += 1
-
-    # Normalize rows to probabilities
     row_sums = mat.sum(axis=1, keepdims=True)
-    row_sums[row_sums == 0] = 1  # avoid division by zero
+    row_sums[row_sums == 0] = 1
     mat /= row_sums
-
     return mat
 
 
 def compute_ngrams(tokens: list, n: int) -> dict:
-    """Count n-grams in the token sequence."""
     counts = {}
     for i in range(len(tokens) - n + 1):
         gram = tuple(tokens[i:i + n])
-        # Only count if all tokens are valid swaras
         if all(t in SWARA_TO_IDX for t in gram):
             counts[gram] = counts.get(gram, 0) + 1
-
-    # Normalize
     total = sum(counts.values())
     if total > 0:
         counts = {k: v / total for k, v in counts.items()}
@@ -102,15 +88,7 @@ def compute_ngrams(tokens: list, n: int) -> dict:
 
 
 def ngrams_to_fixed_vector(ngram_counts: dict, n: int) -> np.ndarray:
-    """
-    Convert n-gram counts to a fixed-length vector.
-    For bigrams: 12×12 = 144 features
-    For trigrams and 4-grams: too sparse for full enumeration,
-    so we keep top-K most common across the dataset.
-    For bigrams we use full enumeration.
-    """
     if n == 2:
-        # Full 12×12 enumeration for bigrams
         vec = np.zeros(N_SWARAS * N_SWARAS, dtype=np.float64)
         for (s1, s2), count in ngram_counts.items():
             i = SWARA_TO_IDX.get(s1)
@@ -119,35 +97,150 @@ def ngrams_to_fixed_vector(ngram_counts: dict, n: int) -> np.ndarray:
                 vec[i * N_SWARAS + j] = count
         return vec
     else:
-        # For higher-order n-grams, return the dict (we'll build a shared vocab later)
         return ngram_counts
 
 
 def compute_pcd(cents_mod: np.ndarray, bins_per_octave: int = 120) -> np.ndarray:
-    """
-    Compute Pitch Class Distribution — histogram of cents values
-    folded into one octave. This is the feature used in Gulati et al. 2016.
-    """
     valid = cents_mod[np.isfinite(cents_mod)]
     if valid.size == 0:
         return np.zeros(bins_per_octave, dtype=np.float64)
-
     edges = np.linspace(0.0, 1200.0, bins_per_octave + 1)
     hist, _ = np.histogram(valid, bins=edges)
     hist = hist.astype(np.float64)
-
     total = hist.sum()
     if total > 0:
         hist /= total
     return hist
 
 
-def plot_transition_matrix(mat: np.ndarray, title: str, out_path: Path):
-    """Plot a transition matrix as a heatmap."""
+# ── Auxiliary feature functions (gamaka + sequence richness) ─────
+
+def compute_auxiliary_features(swara_labels: np.ndarray,
+                                distances: np.ndarray,
+                                cents_mod: np.ndarray,
+                                tokens: list,
+                                segment_duration_s: float = 45.0) -> np.ndarray:
+    """
+    Compute auxiliary features capturing ornament/gamaka information
+    and sequence richness — things the transition matrix loses.
+
+    Returns 10 features:
+      [0] glide_ratio          — fraction of voiced frames labelled "glide"
+      [1] silence_ratio        — fraction of all frames labelled "silence"
+      [2] mean_dist_to_bin     — avg cents distance to nearest swara (voiced)
+      [3] std_dist_to_bin      — std of cents distance (ornament spread)
+      [4] pct_within_tolerance — fraction of voiced frames within 40c of a bin
+      [5] n_tokens             — number of collapsed swara tokens
+      [6] tokens_per_second    — token rate (melodic activity)
+      [7] unique_swaras        — count of distinct swaras used
+      [8] transition_entropy   — entropy of transition matrix (complexity)
+      [9] swara_entropy        — entropy of swara usage distribution
+    """
+    total_frames = len(swara_labels)
+
+    # Glide and silence ratios
+    n_glide = int(np.sum(swara_labels == "glide"))
+    n_silence = int(np.sum(swara_labels == "silence"))
+    n_voiced = total_frames - n_silence
+
+    glide_ratio = float(n_glide / n_voiced) if n_voiced > 0 else 0.0
+    silence_ratio = float(n_silence / total_frames) if total_frames > 0 else 0.0
+
+    # Distance to nearest swara bin
+    valid_dist = distances[np.isfinite(distances)]
+    mean_dist = float(np.mean(valid_dist)) if valid_dist.size > 0 else 0.0
+    std_dist = float(np.std(valid_dist)) if valid_dist.size > 0 else 0.0
+    pct_within = float(np.mean(valid_dist <= 40.0)) if valid_dist.size > 0 else 0.0
+
+    # Token-based features
+    n_tokens = len(tokens)
+    tokens_per_sec = n_tokens / segment_duration_s if segment_duration_s > 0 else 0.0
+    unique_swaras = len(set(t for t in tokens if t in SWARA_TO_IDX))
+
+    # Transition entropy
+    trans_mat = compute_transition_matrix(tokens)
+    flat = trans_mat.flatten()
+    flat = flat[flat > 0]
+    transition_entropy = float(-np.sum(flat * np.log2(flat))) if flat.size > 0 else 0.0
+
+    # Swara usage entropy
+    if n_tokens > 0:
+        swara_counts = {}
+        for t in tokens:
+            if t in SWARA_TO_IDX:
+                swara_counts[t] = swara_counts.get(t, 0) + 1
+        total_t = sum(swara_counts.values())
+        if total_t > 0:
+            probs = np.array(list(swara_counts.values()), dtype=np.float64) / total_t
+            swara_entropy = float(-np.sum(probs * np.log2(probs)))
+        else:
+            swara_entropy = 0.0
+    else:
+        swara_entropy = 0.0
+
+    return np.array([
+        glide_ratio, silence_ratio, mean_dist, std_dist, pct_within,
+        n_tokens, tokens_per_sec, unique_swaras, transition_entropy, swara_entropy,
+    ], dtype=np.float64)
+
+
+# ── MFCC / Audio feature functions ──────────────────────────────
+
+def extract_audio_features(audio_path: str, sr: int = 22050,
+                            n_mfcc: int = 20) -> np.ndarray:
+    """
+    Extract standard audio ML features from a segment:
+      - MFCCs (mean + std of each coefficient)
+      - Chroma (mean of 12 chroma bins)
+      - Spectral centroid (mean + std)
+      - Spectral rolloff (mean + std)
+      - Zero crossing rate (mean + std)
+
+    Returns a fixed-length feature vector.
+    """
+    y, sr = librosa.load(audio_path, sr=sr, mono=True)
+
+    # MFCCs: n_mfcc coefficients, take mean and std over time
+    mfccs = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
+    mfcc_mean = mfccs.mean(axis=1)       # (n_mfcc,)
+    mfcc_std = mfccs.std(axis=1)          # (n_mfcc,)
+
+    # Chroma: 12 bins, mean over time
+    chroma = librosa.feature.chroma_stft(y=y, sr=sr)
+    chroma_mean = chroma.mean(axis=1)     # (12,)
+
+    # Spectral centroid
+    spec_cent = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+    sc_mean = np.array([spec_cent.mean()])
+    sc_std = np.array([spec_cent.std()])
+
+    # Spectral rolloff
+    spec_roll = librosa.feature.spectral_rolloff(y=y, sr=sr)[0]
+    sr_mean = np.array([spec_roll.mean()])
+    sr_std = np.array([spec_roll.std()])
+
+    # Zero crossing rate
+    zcr = librosa.feature.zero_crossing_rate(y)[0]
+    zcr_mean = np.array([zcr.mean()])
+    zcr_std = np.array([zcr.std()])
+
+    # Concatenate all: 20+20+12+2+2+2 = 58 features (with n_mfcc=20)
+    feature_vec = np.concatenate([
+        mfcc_mean, mfcc_std, chroma_mean,
+        sc_mean, sc_std, sr_mean, sr_std,
+        zcr_mean, zcr_std,
+    ])
+
+    return feature_vec
+
+
+# ── Visualization ────────────────────────────────────────────────
+
+def plot_transition_matrix(mat, title, out_path):
     fig, ax = plt.subplots(figsize=(8, 7))
     sns.heatmap(mat, xticklabels=SWARA_NAMES, yticklabels=SWARA_NAMES,
-                cmap="YlOrRd", annot=False, fmt=".2f", ax=ax,
-                square=True, cbar_kws={"shrink": 0.8})
+                cmap="YlOrRd", annot=False, ax=ax, square=True,
+                cbar_kws={"shrink": 0.8})
     ax.set_xlabel("To swara")
     ax.set_ylabel("From swara")
     ax.set_title(title)
@@ -156,19 +249,14 @@ def plot_transition_matrix(mat: np.ndarray, title: str, out_path: Path):
     plt.close(fig)
 
 
-def plot_pcd(pcd: np.ndarray, title: str, out_path: Path):
-    """Plot a Pitch Class Distribution."""
+def plot_pcd(pcd, title, out_path):
     bins = np.linspace(0, 1200, len(pcd), endpoint=False)
-
     fig, ax = plt.subplots(figsize=(10, 4))
     ax.bar(bins, pcd, width=10, color="steelblue", alpha=0.8)
-
-    # Mark swara positions
     for sname, sval in zip(SWARA_NAMES, range(0, 1200, 100)):
         ax.axvline(sval, color="red", linewidth=0.5, alpha=0.5)
         ax.text(sval, ax.get_ylim()[1] * 0.95, sname, fontsize=6,
                 ha="center", color="red")
-
     ax.set_xlabel("Cents (mod 1200)")
     ax.set_ylabel("Density")
     ax.set_title(title)
@@ -178,19 +266,30 @@ def plot_pcd(pcd: np.ndarray, title: str, out_path: Path):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract features from swara traces")
-    parser.add_argument("--plot-n", type=int, default=5,
-                        help="Number of per-raga aggregate plots to generate")
+    parser = argparse.ArgumentParser(description="Extract features from swara traces + audio")
+    parser.add_argument("--plot-n", type=int, default=5)
     args = parser.parse_args()
 
     root = repo_root()
 
-    # --- Input
+    # --- Input: swara traces
     swara_csv = root / "data" / "processed" / "swara_all.csv"
     if not swara_csv.exists():
         raise FileNotFoundError(f"Missing: {swara_csv}. Run 04_swara_mapping.py first.")
-
     df = pd.read_csv(swara_csv)
+
+    # Also need segments CSV for audio paths (for MFCC extraction)
+    seg_csv = root / "data" / "processed" / "segments_saraga_carnatic.csv"
+    seg_df = pd.read_csv(seg_csv)
+
+    # Merge audio paths and duration into df
+    df = df.merge(
+        seg_df[["track_id", "segment_index", "path", "duration_s"]].rename(
+            columns={"path": "audio_path"}),
+        on=["track_id", "segment_index"],
+        how="left"
+    )
+
     print(f"Loaded {len(df)} segments")
 
     # --- Output dirs
@@ -199,40 +298,51 @@ def main():
     ensure_dir(feat_dir)
     ensure_dir(fig_dir)
 
-    # --- Extract features per segment
+    # --- Extract all features
     all_transition_vecs = []
     all_bigram_vecs = []
     all_pcd_vecs = []
     all_trigram_dicts = []
+    all_mfcc_vecs = []
+    all_auxiliary_vecs = []
     meta_rows = []
 
     for i, row in tqdm(df.iterrows(), total=len(df), desc="Feature extraction"):
-        # Load swara trace
+        # -- Swara-based features --
         swara_npz_path = root / row["swara_npz"]
         sdata = np.load(swara_npz_path, allow_pickle=True)
         swara_labels = sdata["swara_labels"]
         cents_mod = sdata["cents_mod"]
+        distances = sdata["distances"]
 
-        # Token sequence (collapsed, no silence/glide)
         tokens = get_swara_token_sequence(swara_labels)
 
-        # 1. Transition matrix → flatten to 144-dim vector
+        # Transition matrix
         trans_mat = compute_transition_matrix(tokens)
-        trans_vec = trans_mat.flatten()
-        all_transition_vecs.append(trans_vec)
+        all_transition_vecs.append(trans_mat.flatten())
 
-        # 2. Bigram counts → 144-dim vector
+        # Bigrams
         bigram_counts = compute_ngrams(tokens, 2)
-        bigram_vec = ngrams_to_fixed_vector(bigram_counts, 2)
-        all_bigram_vecs.append(bigram_vec)
+        all_bigram_vecs.append(ngrams_to_fixed_vector(bigram_counts, 2))
 
-        # 3. Trigram counts (as dict, we'll build shared vocab later)
-        trigram_counts = compute_ngrams(tokens, 3)
-        all_trigram_dicts.append(trigram_counts)
+        # Trigrams (dict for now)
+        all_trigram_dicts.append(compute_ngrams(tokens, 3))
 
-        # 4. PCD — 120-dim vector
-        pcd = compute_pcd(cents_mod, bins_per_octave=120)
-        all_pcd_vecs.append(pcd)
+        # PCD
+        all_pcd_vecs.append(compute_pcd(cents_mod, bins_per_octave=120))
+
+        # -- Auxiliary features (gamaka + sequence richness) --
+        seg_dur = float(row.get("duration_s", 45.0))
+        aux_vec = compute_auxiliary_features(
+            swara_labels, distances, cents_mod, tokens,
+            segment_duration_s=seg_dur
+        )
+        all_auxiliary_vecs.append(aux_vec)
+
+        # -- Audio-based features (MFCC + chroma + spectral) --
+        audio_path = str(root / row["audio_path"])
+        mfcc_vec = extract_audio_features(audio_path, sr=22050, n_mfcc=20)
+        all_mfcc_vecs.append(mfcc_vec)
 
         meta_rows.append({
             "track_id": row["track_id"],
@@ -241,17 +351,13 @@ def main():
             "n_tokens": len(tokens),
         })
 
-    # --- Build trigram feature vectors (shared top-K vocabulary)
+    # --- Build trigram vectors (shared vocabulary)
     print("Building trigram vocabulary...")
-    # Collect all trigrams across dataset
     global_trigrams = {}
     for td in all_trigram_dicts:
         for gram, count in td.items():
-            if gram not in global_trigrams:
-                global_trigrams[gram] = 0
-            global_trigrams[gram] += count
+            global_trigrams[gram] = global_trigrams.get(gram, 0) + count
 
-    # Keep top 200 most frequent trigrams
     TOP_K_TRIGRAMS = 200
     top_trigrams = sorted(global_trigrams.items(), key=lambda x: -x[1])[:TOP_K_TRIGRAMS]
     trigram_vocab = [gram for gram, _ in top_trigrams]
@@ -265,82 +371,83 @@ def main():
                 vec[trigram_to_idx[gram]] = count
         all_trigram_vecs.append(vec)
 
-    # --- Assemble feature matrices
+    # --- Assemble matrices
     meta_df = pd.DataFrame(meta_rows)
 
     transition_mat = np.array(all_transition_vecs)
     bigram_mat = np.array(all_bigram_vecs)
     trigram_mat = np.array(all_trigram_vecs)
     pcd_mat = np.array(all_pcd_vecs)
+    mfcc_mat = np.array(all_mfcc_vecs)
+    auxiliary_mat = np.array(all_auxiliary_vecs)
 
-    # Combined: transition + PCD
-    combined_mat = np.hstack([transition_mat, pcd_mat])
-
-    # Full combined: transition + bigram + trigram + PCD
-    full_combined_mat = np.hstack([transition_mat, bigram_mat, trigram_mat, pcd_mat])
+    # Combined feature sets
+    combined_interp = np.hstack([transition_mat, pcd_mat])
+    combined_interp_aux = np.hstack([transition_mat, pcd_mat, auxiliary_mat])
+    combined_mfcc_pcd = np.hstack([mfcc_mat, pcd_mat])
+    full_combined = np.hstack([transition_mat, pcd_mat, mfcc_mat, auxiliary_mat])
 
     print(f"\nFeature dimensions:")
-    print(f"  Transition matrix:  {transition_mat.shape[1]}")
-    print(f"  Bigram:             {bigram_mat.shape[1]}")
-    print(f"  Trigram (top-{TOP_K_TRIGRAMS}):  {trigram_mat.shape[1]}")
-    print(f"  PCD:                {pcd_mat.shape[1]}")
-    print(f"  Combined (trans+PCD): {combined_mat.shape[1]}")
-    print(f"  Full combined:      {full_combined_mat.shape[1]}")
+    print(f"  Transition:            {transition_mat.shape[1]}")
+    print(f"  Bigram:                {bigram_mat.shape[1]}")
+    print(f"  Trigram (top-{TOP_K_TRIGRAMS}):     {trigram_mat.shape[1]}")
+    print(f"  PCD:                   {pcd_mat.shape[1]}")
+    print(f"  MFCC+audio:            {mfcc_mat.shape[1]}")
+    print(f"  Auxiliary (gamaka+seq): {auxiliary_mat.shape[1]}")
+    print(f"  Combined (interp):     {combined_interp.shape[1]}")
+    print(f"  Combined (interp+aux): {combined_interp_aux.shape[1]}")
+    print(f"  Combined (MFCC+PCD):   {combined_mfcc_pcd.shape[1]}")
+    print(f"  Full combined:         {full_combined.shape[1]}")
 
-    # --- Save feature matrices as .npz
+    # --- Save
     np.savez_compressed(
         feat_dir / "features_all.npz",
         transition=transition_mat,
         bigram=bigram_mat,
         trigram=trigram_mat,
         pcd=pcd_mat,
-        combined=combined_mat,
-        full_combined=full_combined_mat,
+        mfcc=mfcc_mat,
+        auxiliary=auxiliary_mat,
+        combined=combined_interp,
+        combined_interp_aux=combined_interp_aux,
+        combined_mfcc_pcd=combined_mfcc_pcd,
+        full_combined=full_combined,
         track_ids=meta_df["track_id"].values,
         ragas=meta_df["raga"].values,
         segment_indices=meta_df["segment_index"].values,
     )
 
-    # Save metadata
     meta_df.to_csv(feat_dir / "features_meta.csv", index=False)
 
-    # Save trigram vocabulary for reference
     with open(feat_dir / "trigram_vocab.txt", "w", encoding="utf-8") as f:
         for gram in trigram_vocab:
             f.write("→".join(gram) + "\n")
 
-    print(f"\nFeature files saved to: {feat_dir}")
+    print(f"\nSaved to: {feat_dir}")
 
-    # --- Per-raga aggregate plots
-    print(f"\nGenerating per-raga plots...")
+    # --- Per-raga plots
     ragas_to_plot = meta_df["raga"].unique()[:args.plot_n]
-
     for raga in ragas_to_plot:
         mask = meta_df["raga"].values == raga
         if mask.sum() == 0:
             continue
-
-        # Average transition matrix for this raga
         avg_trans = transition_mat[mask].mean(axis=0).reshape(N_SWARAS, N_SWARAS)
-        plot_transition_matrix(
-            avg_trans,
-            f"Avg Transition Matrix — {raga}",
-            fig_dir / f"transition_{raga.replace(' ', '_')}.png"
-        )
-
-        # Average PCD for this raga
+        plot_transition_matrix(avg_trans, f"Avg Transition — {raga}",
+                               fig_dir / f"transition_{raga.replace(' ', '_')}.png")
         avg_pcd = pcd_mat[mask].mean(axis=0)
-        plot_pcd(
-            avg_pcd,
-            f"Avg Pitch Class Distribution — {raga}",
-            fig_dir / f"pcd_{raga.replace(' ', '_')}.png"
-        )
+        plot_pcd(avg_pcd, f"Avg PCD — {raga}",
+                 fig_dir / f"pcd_{raga.replace(' ', '_')}.png")
 
-    # --- Summary stats
-    print(f"\nDone. Extracted features for {len(meta_df)} segments.")
-    print(f"Ragas in dataset: {meta_df['raga'].nunique()}")
-    print(f"\nTokens per segment — mean: {meta_df['n_tokens'].mean():.1f}, "
-          f"median: {meta_df['n_tokens'].median():.1f}")
+    # --- Summary
+    print(f"\nDone. {len(meta_df)} segments.")
+    print(f"Tokens per segment — mean: {meta_df['n_tokens'].mean():.1f}")
+    print(f"\nAuxiliary feature means:")
+    aux_names = ["glide_ratio", "silence_ratio", "mean_dist_to_bin",
+                 "std_dist_to_bin", "pct_within_tol", "n_tokens",
+                 "tokens_per_sec", "unique_swaras", "trans_entropy",
+                 "swara_entropy"]
+    for j, name in enumerate(aux_names):
+        print(f"  {name:25s}: {auxiliary_mat[:, j].mean():.4f}")
     print(f"\nSegments per raga:")
     print(meta_df["raga"].value_counts().to_string())
 
