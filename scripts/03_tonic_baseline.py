@@ -1,8 +1,23 @@
 """
 03_tonic_estimation.py — Stage 3: Tonic (Sa) Estimation + Validation
-
+Summary: 
 Estimates tonic per track by aggregating pitch across all segments,
 then validates against Saraga ground-truth tonic annotations.
+Pools all valid pitch F0 values fromsegments: looks for tone range 
+Chooses one closest to 'Sa'
+Validates estimated tonic against GT; Reports error 
+Histogram plot with error
+
+Ideal Concise Words:
+Loads data/processed/pitch_all.csv (from 02_pitch_extraction.py)
+Groups segments by trackid, concats F0 Values per track
+Searching over tonic candidates in log frequency steps - Cents
+Scores each candidate - Mass near 0 cents SA estnmation + Pitch class Histogram
+Computes confidence as gap btw best and second best
+Data/processed/tonic_validation.csv with GT vs est tonic, confidence, error metrics
+Plots outputs/figures/tonic_validation/tonic_error_histogram.png - histogram of errors
+Prints summary stats: % within 50 cents, median error, worst cases for debugging
+
 
 Usage:
     python scripts/03_tonic_estimation.py
