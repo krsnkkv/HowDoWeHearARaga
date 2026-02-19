@@ -1,10 +1,25 @@
 """
-02_pitch_extraction.py — Stage 2: Pitch Tracking (torchcrepe, GPU)
+02_pitch_extraction.py -- Stage 2: Pitch Tracking (torchcrepe, GPU)
 
 Uses CREPE (deep learning pitch tracker) on GPU for fast extraction.
 Falls back to librosa.pyin on CPU if CUDA is unavailable.
 
-Usage:
+
+Audio segments in preproessing is taken 
+Pitch counter is developed: F0 over time per segment
+Voicing/Confidence scores showing prescence of melody
+Torchcrepe used for GPU Acceleration along wit Speed ; Falls back to librosa if GPU not presetn
+Each segment gets a compressed .npz file with pitch arrays and metadata
+Writes a summary csv as well with one row per sement
+Segments include track ID, Raga label, Path to pitch file, Voiced ratio
+Generates diagnostic plots swhoing extracted pitch curve and confidence over time => VISUALLY SANITYYYY
+
+OUTPUTS:
+    - data/processed/pitch/pitch_all.csv  # Summary of all segments + pitch stats
+    - data/processed/pitch/*.npz          # Per-segment pitch arrays (f0, voiced_prob, etc)
+    - outputs/figures/pitch_debug/*.png   # Diagnostic plots for first N segments   
+    
+Commands:
     python scripts/02_pitch_extraction.py                          # full dataset, GPU
     python scripts/02_pitch_extraction.py --max-per-raga 10        # quick dev run
     python scripts/02_pitch_extraction.py --method pyin            # force pyin (CPU)
