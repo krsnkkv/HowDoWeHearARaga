@@ -1,6 +1,8 @@
 """
 01_preprocess.py — Stage 1: Preprocessing
 
+SARAGA Audio + Metadata -> .wav segments + csv file with foundational information.
+
 Loads Saraga Carnatic tracks via mirdata, filters to tracks with
 raga labels + tonic annotations, segments audio, and writes metadata CSV.
 
@@ -15,10 +17,12 @@ Preprocessing parameters loaded
 Resampling to fixed rate
 Optionally trims leading/trailing silence
 Splits each track into overlapping fixed length segments
-Saves each segment as .wav
+Saves each segment as .wav 
+MIN PER RAGA -> GROUP K FILTERING
+Overlapping segmentation -> More training data, Augmentation
 CSV File: Track ID, Raga label, GT Tonic, Segment index and timestamps, File path to segment
 
-
+Imbalance
 """
 import os #Used for setting environment variables
 import csv #CSV Files writing
@@ -33,7 +37,7 @@ import mirdata #Loads SARAGA
 from tqdm import tqdm #Progress bar for loops (Console)
 
 #Loads YAML file that contains preprocessing settings
-# Returns a dict with config values
+# Returns a dict with config values: SR, Segment length, hopsilence, trim silen
 def load_cfg(cfg_path: str) -> dict:
     with open(cfg_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -47,15 +51,14 @@ def ensure_dirs(*paths: Path) -> None:
     for p in paths:
         p.mkdir(parents=True, exist_ok=True)
 
-
+#Two stage track filtering:
 def get_usable_tracks(ds, min_tracks_per_raga: int = 3):
     """
-    Filters to tracks that have:
-      - raga label (non-empty)
-      - tonic annotation
-      - audio file
-    Then filter to ragas with >= min_tracks_per_raga examples.
-    Excludes Ragamalika (multi-raga compositions).
+
+    Track Validity -> Raga label, tonic annotatin, audio file, not Ragamallika
+    track id, raga, tonic hz, audio path, has pitch annot
+    Class support filtering -> Counts how many tracks per raga, Keeps minimum number of tracks per raga 
+    usable, raga counts, valid ragas
     """
     candidates = []
 
@@ -113,7 +116,7 @@ def main():
 
     root = repo_root()
 
-    # --- Load config
+    # --- Load config: loads sr, seg len, hop, trim
     cfg = load_cfg(str(root / "configs" / "preprocessing.yaml"))
     target_sr = int(cfg["sample_rate"])
     seg_s = float(cfg["segment_seconds"])
@@ -125,7 +128,7 @@ def main():
     os.environ["MIRDATA_HOME"] = str(mirdata_home)
     ds = mirdata.initialize("saraga_carnatic")
 
-    # --- Filter to usable tracks
+    # --- Filter to usable tracks (def get usable tracks)
     usable, raga_counts, valid_ragas = get_usable_tracks(ds, args.min_tracks_per_raga)
 
     print(f"Total Saraga Carnatic tracks: {len(ds.track_ids)}")
@@ -148,6 +151,7 @@ def main():
     hop_len = int(hop_s * target_sr)
     rows = []
 
+    #Load audio at fixed sr, trim, skip if too short, slide a window across each track
     for track_info in tqdm(usable, desc="Tracks"):
         tid = track_info["track_id"]
         raga = track_info["raga"]
