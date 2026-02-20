@@ -11,7 +11,12 @@ Histogram plot with error
 Ideal Concise Words:
 Loads data/processed/pitch_all.csv (from 02_pitch_extraction.py)
 Groups segments by trackid, concats F0 Values per track
-Searching over tonic candidates in log frequency steps - Cents
+
+Searching over tonic candidates in log frequency steps - Cents 
+Human pitch perception is logarithmic, not linear.
+If we stepped linearly in Hz, low frequencies would get fine resolution 
+and high frequencies coarse resolution, which is musically incorrect.
+
 Scores each candidate - Mass near 0 cents SA estnmation + Pitch class Histogram
 Computes confidence as gap btw best and second best
 Data/processed/tonic_validation.csv with GT vs est tonic, confidence, error metrics
