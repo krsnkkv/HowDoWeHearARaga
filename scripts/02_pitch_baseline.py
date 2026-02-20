@@ -4,7 +4,6 @@
 Uses CREPE (deep learning pitch tracker) on GPU for fast extraction.
 Falls back to librosa.pyin on CPU if CUDA is unavailable.
 
-
 Audio segments in preproessing is taken 
 Pitch counter is developed: F0 over time per segment
 Voicing/Confidence scores showing prescence of melody
@@ -38,20 +37,22 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-
+#Repo Roo finder
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
 
+#Makes sure directory exists
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
-
+#Loading YAML for config values
 def load_cfg(cfg_path: str) -> dict:
     with open(cfg_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
 
-
+# TorchCREPE - Estimation of pitch and periodicity; converts output tensors to numpy arrays 
+# Masks the F0 with confidence greater than or equal to 0.5
 def extract_pitch_crepe(y: np.ndarray, sr: int, hop_length: int = 256,
                         fmin: float = 65.0, fmax: float = 2100.0,
                         device: str = "cuda"):
@@ -93,7 +94,7 @@ def extract_pitch_crepe(y: np.ndarray, sr: int, hop_length: int = 256,
 
     return f0_masked, voiced_flag.astype(np.bool_), confidence
 
-
+# If GPU not present, then using librsoa ; a baseline pitch tracker for comparison and reproducibility.
 def extract_pitch_pyin(y: np.ndarray, sr: int, hop_length: int = 256,
                        fmin: float = 65.0, fmax: float = 2100.0):
     """Fallback: extract pitch using librosa pyin (CPU)."""
@@ -102,7 +103,7 @@ def extract_pitch_pyin(y: np.ndarray, sr: int, hop_length: int = 256,
     )
     return f0, voiced_flag, voiced_prob
 
-
+# Visual sanity check for the verification of how the pitch contours look
 def plot_pitch_diagnostic(root, row, hop_length, sr_target, fig_dir):
     """Generate a diagnostic plot for one segment."""
     npz_path = root / row["pitch_npz"]
