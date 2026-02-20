@@ -24,6 +24,10 @@ try candidate tonic values, convert all pitches to cents relative to the candida
 octave olding, histogram building, probability mass is near 0 cets
 choose best tonic
 
+IMPROVED VERSION with:
+  1. Harmonic scoring: checks for Pa (702 cents) peak alongside Sa (0 cents)
+  2. Octave candidate correction: tests 2× frequency after initial estimate
+  3. Optional drone-based estimation if Saraga provides tānpura audio
 Usage:
     python scripts/03_tonic_estimation.py
 """
