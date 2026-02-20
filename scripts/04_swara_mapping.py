@@ -6,8 +6,14 @@ Uses ground-truth tonic by default; can use estimated tonic with --use-estimated
 
 Takes pitch contour/F0 and converts to Swara Labels relative to SA
 Loads per segment files from pitch_all.csv -> .npz
+
 Chooses tonic - cents relative to SA ; Assigns each frame to nearest swara bin
-If within tolerance: Glide 
+
+Circular Distance in cents
+
+If within tolerance: Glide not within any bin
+no valid pitch - silence
+short runs on swara -> glidee to reduce label flickering 
 Minimum duration filter to prevent rapid flickering
 Saves per segment swara track as .npz, writes summary CSV and optionally 
 generates diagnositc plots showing cents countour with swara labels
