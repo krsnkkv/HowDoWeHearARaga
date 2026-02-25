@@ -216,6 +216,7 @@ def train_svm(X: np.ndarray, y: np.ndarray, groups: np.ndarray,
 
     all_y_true = []
     all_y_pred = []
+    all_y_proba = []
     all_groups = []
     fold_accuracies = []
 
@@ -227,14 +228,17 @@ def train_svm(X: np.ndarray, y: np.ndarray, groups: np.ndarray,
         fold_pipe.fit(X_train, y_train)
 
         y_pred = fold_pipe.predict(X_val)
+        y_proba = fold_pipe.predict_proba(X_val)
 
         all_y_true.extend(y_val)
         all_y_pred.extend(y_pred)
+        all_y_proba.extend(y_proba)
         all_groups.extend(groups[val_idx])
         fold_accuracies.append(accuracy_score(y_val, y_pred))
 
     all_y_true = np.array(all_y_true)
     all_y_pred = np.array(all_y_pred)
+    all_y_proba = np.array(all_y_proba)
     all_groups = np.array(all_groups)
 
     # Segment-level metrics
@@ -288,6 +292,7 @@ def train_svm(X: np.ndarray, y: np.ndarray, groups: np.ndarray,
         "best_params": grid.best_params_,
         "y_true": all_y_true,
         "y_pred": all_y_pred,
+        "y_proba": all_y_proba,
         "groups": all_groups,
         "track_details": track_details,
         "report": report,
@@ -511,6 +516,85 @@ def train_lstm(meta_df: pd.DataFrame, le: LabelEncoder,
     }
 
 
+# ── Probability Fusion ───────────────────────────────────────────
+
+def probability_fusion(results_subset: dict, label_names: list) -> dict:
+    """
+    Late fusion: weighted average of per-class probability vectors from
+    multiple SVMs. Weights are proportional to each model's CV weighted F1.
+
+    All models in results_subset must have been evaluated with the same
+    GroupKFold split (same y and groups), so their y_true orderings match.
+    """
+    names = list(results_subset.keys())
+    f1_scores = np.array([results_subset[n]["f1_weighted"] for n in names])
+    weights = f1_scores / f1_scores.sum()
+
+    print(f"\n{'='*60}")
+    print(f"PROBABILITY FUSION — {len(names)} models")
+    print(f"{'='*60}")
+    for name, w, f1 in zip(names, weights, f1_scores):
+        print(f"  {name:<35} weight={w:.3f}  (CV F1w={f1:.4f})")
+
+    ref_y_true = results_subset[names[0]]["y_true"]
+    ref_groups = results_subset[names[0]]["groups"]
+
+    fused_proba = np.zeros_like(results_subset[names[0]]["y_proba"])
+    for name, w in zip(names, weights):
+        assert np.array_equal(results_subset[name]["y_true"], ref_y_true), (
+            f"Segment ordering mismatch for {name} — GroupKFold must use "
+            "identical y and groups across all models."
+        )
+        fused_proba += w * results_subset[name]["y_proba"]
+
+    fused_pred = fused_proba.argmax(axis=1)
+
+    acc = accuracy_score(ref_y_true, fused_pred)
+    f1_w = f1_score(ref_y_true, fused_pred, average="weighted")
+    f1_m = f1_score(ref_y_true, fused_pred, average="macro")
+
+    print(f"\n--- Segment-level ---")
+    print(f"Accuracy:         {acc:.4f}")
+    print(f"F1 (weighted):    {f1_w:.4f}")
+    print(f"F1 (macro):       {f1_m:.4f}")
+
+    report = classification_report(ref_y_true, fused_pred,
+                                   target_names=label_names, zero_division=0)
+    print(f"\n{report}")
+
+    track_true, track_pred, track_details = track_level_voting(
+        ref_y_true, fused_pred, ref_groups, label_names
+    )
+    track_acc = accuracy_score(track_true, track_pred)
+    track_f1_w = f1_score(track_true, track_pred, average="weighted", zero_division=0)
+    track_f1_m = f1_score(track_true, track_pred, average="macro", zero_division=0)
+
+    print(f"--- Track-level (majority vote) ---")
+    print(f"Tracks:           {len(track_true)}")
+    print(f"Accuracy:         {track_acc:.4f}")
+    print(f"F1 (weighted):    {track_f1_w:.4f}")
+    print(f"F1 (macro):       {track_f1_m:.4f}")
+
+    track_report = classification_report(track_true, track_pred,
+                                         target_names=label_names, zero_division=0)
+    print(f"\n{track_report}")
+
+    return {
+        "accuracy": acc,
+        "f1_weighted": f1_w,
+        "f1_macro": f1_m,
+        "track_accuracy": track_acc,
+        "track_f1_weighted": track_f1_w,
+        "track_f1_macro": track_f1_m,
+        "fold_accuracies": [],
+        "y_true": ref_y_true,
+        "y_pred": fused_pred,
+        "groups": ref_groups,
+        "track_details": track_details,
+        "report": report,
+    }
+
+
 # ── Visualization ────────────────────────────────────────────────
 
 def plot_confusion_matrix(y_true, y_pred, label_names, title, out_path):
@@ -565,8 +649,8 @@ def plot_comparison_bar(results_dict: dict, out_path: Path):
 def main():
     parser = argparse.ArgumentParser(description="Train raga classifiers (v2)")
     parser.add_argument("--skip-lstm", action="store_true")
-    parser.add_argument("--min-voiced-ratio", type=float, default=0.15,
-                        help="Filter segments below this voiced ratio (default: 0.15)")
+    parser.add_argument("--min-voiced-ratio", type=float, default=0.25,
+                        help="Filter segments below this voiced ratio (default: 0.25)")
     parser.add_argument("--min-segments-per-raga", type=int, default=20,
                         help="Drop rāgas with fewer segments than this (default: 20)")
     parser.add_argument("--cv-folds", type=int, default=5)
@@ -601,7 +685,8 @@ def main():
     all_results = {}
 
     feature_sets = [
-        "transition", "pcd", "mfcc", "auxiliary", "transition_aux",
+        "transition", "directional_transition", "pcd", "mfcc", "auxiliary",
+        "transition_aux", "directional_pcd", "directional_aux", "directional_full",
         "combined", "combined_interp_aux", "combined_mfcc_pcd", "full_combined",
     ]
 
@@ -620,6 +705,23 @@ def main():
             f"Confusion Matrix — SVM {feat_name}\n"
             f"(Seg Acc: {results['accuracy']:.3f}, Track Acc: {results['track_accuracy']:.3f})",
             fig_dir / f"cm_SVM_{feat_name}.png"
+        )
+
+    # --- Probability fusion over pitch-structure SVMs
+    fusion_candidates = ["SVM_transition", "SVM_directional_transition", "SVM_pcd"]
+    fusion_subset = {
+        k: all_results[k] for k in fusion_candidates
+        if k in all_results and "y_proba" in all_results[k]
+    }
+    if len(fusion_subset) >= 2:
+        fusion_results = probability_fusion(fusion_subset, label_names)
+        all_results["fusion_pitch"] = fusion_results
+        plot_confusion_matrix(
+            fusion_results["y_true"], fusion_results["y_pred"], label_names,
+            f"Confusion Matrix — Probability Fusion\n"
+            f"(Seg Acc: {fusion_results['accuracy']:.3f}, "
+            f"Track Acc: {fusion_results['track_accuracy']:.3f})",
+            fig_dir / "cm_fusion_pitch.png",
         )
 
     # --- Train LSTM
