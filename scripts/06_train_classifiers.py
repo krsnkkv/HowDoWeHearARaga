@@ -601,7 +601,7 @@ def main():
     all_results = {}
 
     feature_sets = [
-        "transition", "pcd", "mfcc", "auxiliary",
+        "transition", "pcd", "mfcc", "auxiliary", "transition_aux",
         "combined", "combined_interp_aux", "combined_mfcc_pcd", "full_combined",
     ]
 
