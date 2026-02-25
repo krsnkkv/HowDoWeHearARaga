@@ -382,6 +382,7 @@ def main():
     auxiliary_mat = np.array(all_auxiliary_vecs)
 
     # Combined feature sets
+    transition_aux = np.hstack([transition_mat, auxiliary_mat])               # transition + gamaka/seq
     combined_interp = np.hstack([transition_mat, pcd_mat])
     combined_interp_aux = np.hstack([transition_mat, pcd_mat, auxiliary_mat])
     combined_mfcc_pcd = np.hstack([mfcc_mat, pcd_mat])
@@ -394,6 +395,7 @@ def main():
     print(f"  PCD:                   {pcd_mat.shape[1]}")
     print(f"  MFCC+audio:            {mfcc_mat.shape[1]}")
     print(f"  Auxiliary (gamaka+seq): {auxiliary_mat.shape[1]}")
+    print(f"  Transition+aux:        {transition_aux.shape[1]}")
     print(f"  Combined (interp):     {combined_interp.shape[1]}")
     print(f"  Combined (interp+aux): {combined_interp_aux.shape[1]}")
     print(f"  Combined (MFCC+PCD):   {combined_mfcc_pcd.shape[1]}")
@@ -408,6 +410,7 @@ def main():
         pcd=pcd_mat,
         mfcc=mfcc_mat,
         auxiliary=auxiliary_mat,
+        transition_aux=transition_aux,
         combined=combined_interp,
         combined_interp_aux=combined_interp_aux,
         combined_mfcc_pcd=combined_mfcc_pcd,
