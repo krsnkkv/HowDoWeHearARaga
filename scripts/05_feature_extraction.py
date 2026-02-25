@@ -75,6 +75,37 @@ def compute_transition_matrix(tokens: list) -> np.ndarray:
     return mat
 
 
+def compute_directional_transition_matrices(tokens: list) -> tuple:
+    """
+    Split transitions by melodic direction (swara index order).
+
+    Arohana  (ascending):  dst_idx > src_idx
+    Avarohana (descending): dst_idx < src_idx
+    Equal-index repeats are excluded from both matrices.
+
+    Returns row-normalised (12x12) arohana and avarohana matrices.
+    """
+    arohana = np.zeros((N_SWARAS, N_SWARAS), dtype=np.float64)
+    avarohana = np.zeros((N_SWARAS, N_SWARAS), dtype=np.float64)
+
+    for i in range(len(tokens) - 1):
+        src = SWARA_TO_IDX.get(tokens[i])
+        dst = SWARA_TO_IDX.get(tokens[i + 1])
+        if src is None or dst is None:
+            continue
+        if dst > src:
+            arohana[src, dst] += 1
+        elif dst < src:
+            avarohana[src, dst] += 1
+
+    for mat in (arohana, avarohana):
+        row_sums = mat.sum(axis=1, keepdims=True)
+        row_sums[row_sums == 0] = 1
+        mat /= row_sums
+
+    return arohana, avarohana
+
+
 def compute_ngrams(tokens: list, n: int) -> dict:
     counts = {}
     for i in range(len(tokens) - n + 1):
@@ -305,6 +336,8 @@ def main():
     all_trigram_dicts = []
     all_mfcc_vecs = []
     all_auxiliary_vecs = []
+    all_arohana_vecs = []
+    all_avarohana_vecs = []
     meta_rows = []
 
     for i, row in tqdm(df.iterrows(), total=len(df), desc="Feature extraction"):
@@ -320,6 +353,11 @@ def main():
         # Transition matrix
         trans_mat = compute_transition_matrix(tokens)
         all_transition_vecs.append(trans_mat.flatten())
+
+        # Directional transition matrices (arohana / avarohana split)
+        aro_mat, ava_mat = compute_directional_transition_matrices(tokens)
+        all_arohana_vecs.append(aro_mat.flatten())
+        all_avarohana_vecs.append(ava_mat.flatten())
 
         # Bigrams
         bigram_counts = compute_ngrams(tokens, 2)
@@ -380,16 +418,25 @@ def main():
     pcd_mat = np.array(all_pcd_vecs)
     mfcc_mat = np.array(all_mfcc_vecs)
     auxiliary_mat = np.array(all_auxiliary_vecs)
+    arohana_mat = np.array(all_arohana_vecs)
+    avarohana_mat = np.array(all_avarohana_vecs)
+    directional_mat = np.hstack([arohana_mat, avarohana_mat])
 
     # Combined feature sets
-    transition_aux = np.hstack([transition_mat, auxiliary_mat])               # transition + gamaka/seq
+    transition_aux = np.hstack([transition_mat, auxiliary_mat])
     combined_interp = np.hstack([transition_mat, pcd_mat])
     combined_interp_aux = np.hstack([transition_mat, pcd_mat, auxiliary_mat])
     combined_mfcc_pcd = np.hstack([mfcc_mat, pcd_mat])
     full_combined = np.hstack([transition_mat, pcd_mat, mfcc_mat, auxiliary_mat])
+    directional_pcd = np.hstack([directional_mat, pcd_mat])
+    directional_aux = np.hstack([directional_mat, auxiliary_mat])
+    directional_full = np.hstack([directional_mat, pcd_mat, auxiliary_mat])
 
     print(f"\nFeature dimensions:")
     print(f"  Transition:            {transition_mat.shape[1]}")
+    print(f"  Arohana transition:    {arohana_mat.shape[1]}")
+    print(f"  Avarohana transition:  {avarohana_mat.shape[1]}")
+    print(f"  Directional (aro+ava): {directional_mat.shape[1]}")
     print(f"  Bigram:                {bigram_mat.shape[1]}")
     print(f"  Trigram (top-{TOP_K_TRIGRAMS}):     {trigram_mat.shape[1]}")
     print(f"  PCD:                   {pcd_mat.shape[1]}")
@@ -400,11 +447,17 @@ def main():
     print(f"  Combined (interp+aux): {combined_interp_aux.shape[1]}")
     print(f"  Combined (MFCC+PCD):   {combined_mfcc_pcd.shape[1]}")
     print(f"  Full combined:         {full_combined.shape[1]}")
+    print(f"  Directional+PCD:       {directional_pcd.shape[1]}")
+    print(f"  Directional+aux:       {directional_aux.shape[1]}")
+    print(f"  Directional+PCD+aux:   {directional_full.shape[1]}")
 
     # --- Save
     np.savez_compressed(
         feat_dir / "features_all.npz",
         transition=transition_mat,
+        arohana_transition=arohana_mat,
+        avarohana_transition=avarohana_mat,
+        directional_transition=directional_mat,
         bigram=bigram_mat,
         trigram=trigram_mat,
         pcd=pcd_mat,
@@ -415,6 +468,9 @@ def main():
         combined_interp_aux=combined_interp_aux,
         combined_mfcc_pcd=combined_mfcc_pcd,
         full_combined=full_combined,
+        directional_pcd=directional_pcd,
+        directional_aux=directional_aux,
+        directional_full=directional_full,
         track_ids=meta_df["track_id"].values,
         ragas=meta_df["raga"].values,
         segment_indices=meta_df["segment_index"].values,
@@ -437,6 +493,12 @@ def main():
         avg_trans = transition_mat[mask].mean(axis=0).reshape(N_SWARAS, N_SWARAS)
         plot_transition_matrix(avg_trans, f"Avg Transition — {raga}",
                                fig_dir / f"transition_{raga.replace(' ', '_')}.png")
+        avg_aro = arohana_mat[mask].mean(axis=0).reshape(N_SWARAS, N_SWARAS)
+        plot_transition_matrix(avg_aro, f"Avg Arohana — {raga}",
+                               fig_dir / f"arohana_{raga.replace(' ', '_')}.png")
+        avg_ava = avarohana_mat[mask].mean(axis=0).reshape(N_SWARAS, N_SWARAS)
+        plot_transition_matrix(avg_ava, f"Avg Avarohana — {raga}",
+                               fig_dir / f"avarohana_{raga.replace(' ', '_')}.png")
         avg_pcd = pcd_mat[mask].mean(axis=0)
         plot_pcd(avg_pcd, f"Avg PCD — {raga}",
                  fig_dir / f"pcd_{raga.replace(' ', '_')}.png")
