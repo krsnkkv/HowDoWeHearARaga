@@ -780,6 +780,8 @@ def main():
     # cli flags for ablations + filtering
     parser = argparse.ArgumentParser(description="Train raga classifiers (v2)")
     parser.add_argument("--skip-lstm", action="store_true")
+    parser.add_argument("--skip-svm", action="store_true",
+                        help="Skip all SVM classifiers (LSTM only)")
     parser.add_argument("--min-voiced-ratio", type=float, default=0.25,
                         help="Filter segments below this voiced ratio (default: 0.25)")
     parser.add_argument("--min-segments-per-raga", type=int, default=20,
@@ -845,40 +847,43 @@ def main():
         "directional_full",
     ]
 
-    for feat_name in feature_sets:
-        if feat_name not in features:
-            print(f"\nSkipping {feat_name} — not in features_all.npz")
-            continue
+    if not args.skip_svm:
+        for feat_name in feature_sets:
+            if feat_name not in features:
+                print(f"\nSkipping {feat_name} — not in features_all.npz")
+                continue
 
-        X = features[feat_name]
-        results = train_svm(X, y, groups, label_names, feat_name,
-                           cv_folds=args.cv_folds, model_dir=model_dir)
-        all_results[f"SVM_{feat_name}"] = results
+            X = features[feat_name]
+            results = train_svm(X, y, groups, label_names, feat_name,
+                               cv_folds=args.cv_folds, model_dir=model_dir)
+            all_results[f"SVM_{feat_name}"] = results
 
-        # save confusion matrix for this model
-        plot_confusion_matrix(
-            results["y_true"], results["y_pred"], label_names,
-            f"Confusion Matrix — SVM {feat_name}\n"
-            f"(Seg Acc: {results['accuracy']:.3f}, Track Acc: {results['track_accuracy']:.3f})",
-            fig_dir / f"cm_SVM_{feat_name}.png"
-        )
+            # save confusion matrix for this model
+            plot_confusion_matrix(
+                results["y_true"], results["y_pred"], label_names,
+                f"Confusion Matrix — SVM {feat_name}\n"
+                f"(Seg Acc: {results['accuracy']:.3f}, Track Acc: {results['track_accuracy']:.3f})",
+                fig_dir / f"cm_SVM_{feat_name}.png"
+            )
 
-    # --- probability fusion over best pitch-structure svms
-    fusion_candidates = ["SVM_pcd", "SVM_trigram", "SVM_trigram_dwell"]
-    fusion_subset = {
-        k: all_results[k] for k in fusion_candidates
-        if k in all_results and "y_proba" in all_results[k]
-    }
-    if len(fusion_subset) >= 2:
-        fusion_results = probability_fusion(fusion_subset, label_names)
-        all_results["fusion_pitch"] = fusion_results
-        plot_confusion_matrix(
-            fusion_results["y_true"], fusion_results["y_pred"], label_names,
-            f"Confusion Matrix — Probability Fusion\n"
-            f"(Seg Acc: {fusion_results['accuracy']:.3f}, "
-            f"Track Acc: {fusion_results['track_accuracy']:.3f})",
-            fig_dir / "cm_fusion_pitch.png",
-        )
+        # --- probability fusion over best pitch-structure svms
+        fusion_candidates = ["SVM_pcd", "SVM_trigram", "SVM_trigram_dwell"]
+        fusion_subset = {
+            k: all_results[k] for k in fusion_candidates
+            if k in all_results and "y_proba" in all_results[k]
+        }
+        if len(fusion_subset) >= 2:
+            fusion_results = probability_fusion(fusion_subset, label_names)
+            all_results["fusion_pitch"] = fusion_results
+            plot_confusion_matrix(
+                fusion_results["y_true"], fusion_results["y_pred"], label_names,
+                f"Confusion Matrix — Probability Fusion\n"
+                f"(Seg Acc: {fusion_results['accuracy']:.3f}, "
+                f"Track Acc: {fusion_results['track_accuracy']:.3f})",
+                fig_dir / "cm_fusion_pitch.png",
+            )
+    else:
+        print("\n⏭ Skipping all SVM classifiers (--skip-svm)")
 
     # --- train lstm
     if not args.skip_lstm:
