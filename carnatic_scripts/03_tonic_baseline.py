@@ -46,6 +46,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import librosa
 
 
 def repo_root() -> Path:
@@ -410,9 +411,55 @@ def plot_method_comparison(results_dict: dict, out_path: Path):
     plt.close(fig)
 
 
+def extract_pitch_from_audio(audio_path, sr=22050, hop_length=256,
+                             fmin=65.0, fmax=2100.0, max_duration=300):
+    """
+    Extract F0 directly from an audio file using pyin (CPU).
+    Used for vocal-track tonic estimation where pre-extracted pitch
+    is unavailable. Caps at max_duration seconds to avoid memory issues.
+    """
+    y, sr_loaded = librosa.load(audio_path, sr=sr, duration=max_duration)
+    if len(y) < sr:  # less than 1 second
+        return np.array([])
+    f0, voiced_flag, _ = librosa.pyin(
+        y, fmin=fmin, fmax=fmax, sr=sr, hop_length=hop_length
+    )
+    if f0 is None:
+        return np.array([])
+    f0_valid = f0[np.isfinite(f0) & (f0 > 0)]
+    return f0_valid
+
+
+def build_vocal_path_map(root):
+    """
+    Load mirdata to get vocal audio paths per track.
+    Returns dict: {track_id: vocal_audio_path} for tracks with vocal audio.
+    """
+    import os, mirdata
+    mirdata_home = root / "data" / "raw" / "mirdata"
+    os.environ["MIRDATA_HOME"] = str(mirdata_home)
+    ds = mirdata.initialize("saraga_carnatic")
+    tracks = ds.load_tracks()
+
+    vocal_map = {}
+    for tid, t in tracks.items():
+        if t.audio_vocal_path is not None:
+            vp = Path(t.audio_vocal_path)
+            if vp.exists():
+                vocal_map[tid] = str(vp)
+    return vocal_map
+
+
 def run_estimation(df, root, candidate_min, candidate_max, step_cents,
-                   bins_per_octave, min_voiced, method, pa_weight):
-    """Run tonic estimation with a specific method. Returns DataFrame of results."""
+                   bins_per_octave, min_voiced, method, pa_weight,
+                   vocal_map=None):
+    """
+    Run tonic estimation with a specific method. Returns DataFrame of results.
+
+    If vocal_map is provided, uses isolated vocal audio for pitch extraction
+    (cognitively motivated: isolates the melodic signal a listener focuses on).
+    Falls back to mix-based segment pitch when vocal audio is unavailable.
+    """
     rows = []
 
     for track_id, group in tqdm(df.groupby("track_id"),
@@ -420,14 +467,25 @@ def run_estimation(df, root, candidate_min, candidate_max, step_cents,
         all_f0 = []
         gt_tonic = group["gt_tonic_hz"].iloc[0]
         raga = group["raga"].iloc[0]
+        source = "mix_segments"  # default
 
-        for _, seg_row in group.iterrows():
-            npz_path = root / seg_row["pitch_npz"]
-            data = np.load(npz_path)
-            f0 = data["f0"]
-            f0_valid = f0[np.isfinite(f0) & (f0 > 0)]
-            if f0_valid.size > 0:
-                all_f0.append(f0_valid)
+        # --- Try vocal track first if available
+        if vocal_map and track_id in vocal_map:
+            vocal_f0 = extract_pitch_from_audio(vocal_map[track_id])
+            if vocal_f0.size >= min_voiced:
+                all_f0.append(vocal_f0)
+                source = "vocal"
+
+        # --- Fall back to mix-based segment pitch
+        if len(all_f0) == 0:
+            for _, seg_row in group.iterrows():
+                npz_path = root / seg_row["pitch_npz"]
+                data = np.load(npz_path)
+                f0 = data["f0"]
+                f0_valid = f0[np.isfinite(f0) & (f0 > 0)]
+                if f0_valid.size > 0:
+                    all_f0.append(f0_valid)
+            source = "mix_segments"
 
         if len(all_f0) == 0:
             est_hz, conf = float("nan"), 0.0
@@ -467,6 +525,7 @@ def run_estimation(df, root, candidate_min, candidate_max, step_cents,
             "is_octave_error": is_octave_error(est_hz, gt_tonic),
             "method": method_used,
             "n_segments": len(group),
+            "pitch_source": source,
         })
 
     return pd.DataFrame(rows)
@@ -523,6 +582,10 @@ def main():
                              "or compare (run all and show comparison)")
     parser.add_argument("--pa-weight", type=float, default=0.5,
                         help="Weight for Pa mass in harmonic scoring (default: 0.5)")
+    parser.add_argument("--use-vocal", action="store_true",
+                        help="Use isolated vocal track for tonic estimation where available. "
+                             "Falls back to mix-based pitch when vocal audio is absent. "
+                             "Cognitively motivated: isolates the melodic signal.")
     args = parser.parse_args()
 
     root = repo_root()
@@ -559,6 +622,13 @@ def main():
     else:
         methods_to_run = [args.method]
 
+    # --- Build vocal path map if requested
+    vocal_map = None
+    if args.use_vocal:
+        print("Building vocal track map from mirdata...")
+        vocal_map = build_vocal_path_map(root)
+        print(f"Found vocal audio for {len(vocal_map)} tracks")
+
     comparison_results = {}
 
     for method in methods_to_run:
@@ -566,7 +636,8 @@ def main():
 
         val_df = run_estimation(
             df, root, candidate_min, candidate_max, step_cents,
-            bins_per_octave, min_voiced, method, args.pa_weight
+            bins_per_octave, min_voiced, method, args.pa_weight,
+            vocal_map=vocal_map,
         )
 
         # Save results
