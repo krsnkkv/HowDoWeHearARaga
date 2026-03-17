@@ -252,7 +252,18 @@ def train_svm(X: np.ndarray, y: np.ndarray, groups: np.ndarray,
 
     all_y_true = np.array(all_y_true)
     all_y_pred = np.array(all_y_pred)
-    all_y_proba = np.array(all_y_proba)
+    # handle variable-size proba arrays (folds may see different class counts)
+    try:
+        all_y_proba = np.array(all_y_proba)
+    except ValueError:
+        n_classes = max(p.shape[-1] for p in all_y_proba)
+        padded = []
+        for p in all_y_proba:
+            if p.ndim == 1 and p.shape[0] < n_classes:
+                padded.append(np.pad(p, (0, n_classes - p.shape[0])))
+            else:
+                padded.append(p)
+        all_y_proba = np.array(padded)
     all_groups = np.array(all_groups)
 
     # segment-level metrics
@@ -787,6 +798,9 @@ def main():
     parser.add_argument("--min-segments-per-raga", type=int, default=20,
                         help="Drop rāgas with fewer segments than this (default: 20)")
     parser.add_argument("--cv-folds", type=int, default=5)
+    parser.add_argument("--exclude-tracks", type=str, default=None,
+                        help="Comma-separated track_id prefixes to exclude "
+                             "(e.g. '157_,166_,91_' to drop bad-tonic tracks)")
     args = parser.parse_args()
 
     root = repo_root()
@@ -797,6 +811,30 @@ def main():
         min_voiced_ratio=args.min_voiced_ratio,
         min_segments_per_raga=args.min_segments_per_raga,
     )
+
+    # --- optional: exclude specific tracks (e.g. bad tonic estimates)
+    if args.exclude_tracks:
+        prefixes = [p.strip() for p in args.exclude_tracks.split(",")]
+        exclude_mask = np.array([
+            any(tid.startswith(p) for p in prefixes) for tid in track_ids
+        ])
+        n_excl = exclude_mask.sum()
+        keep = ~exclude_mask
+        for key in features:
+            features[key] = features[key][keep]
+        ragas = ragas[keep]
+        track_ids = track_ids[keep]
+        meta_df = meta_df[keep].reset_index(drop=True)
+        # re-filter ragas that may now have too few segments
+        raga_counts = pd.Series(ragas).value_counts()
+        keep_ragas = set(raga_counts[raga_counts >= args.min_segments_per_raga].index)
+        raga_keep = np.array([r in keep_ragas for r in ragas])
+        for key in features:
+            features[key] = features[key][raga_keep]
+        ragas = ragas[raga_keep]
+        track_ids = track_ids[raga_keep]
+        meta_df = meta_df[raga_keep].reset_index(drop=True)
+        print(f"Excluded {n_excl} segments from {len(prefixes)} track prefixes")
 
     # encode raga labels into ints for classifiers
     le = LabelEncoder()
