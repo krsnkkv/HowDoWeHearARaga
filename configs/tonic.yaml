@@ -2,5 +2,5 @@ candidate_min_hz: 80.0    # lowest plausible Sa (low male voice)
 candidate_max_hz: 300.0   # highest plausible Sa (high female voice)
 step_cents: 10.0          # search resolution (10 cents = fine grid)
 bins_per_octave: 120      # 10-cent histogram bins
-scoring_method: "sa_mass" # pure Sa-region mass (no entropy bonus)
+scoring_method: "sa_mass"  # Config label, but code runs BOTH sa_mass and harmonic (Sa + 0.5×Pa) and picks the better estimate per track
 min_voiced_frames: 200    # skip tracks with too little pitch data

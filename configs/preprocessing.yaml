@@ -1,6 +1,6 @@
-dataset_name: saraga_carnatic
-sample_rate: 22050
-segment_seconds: 45.0
-hop_seconds: 15.0
-max_tracks: 20          # keep small for tonight; bump later
-trim_silence: false
+dataset_name: saraga_carnatic #SARAGA Dataset 
+sample_rate: 22050 #Standard Hz for Librosa and CREPE
+segment_seconds: 45.0 #Window size suitable for pakad capture and 200 tokens production post collapse
+hop_seconds: 15.0 #66.7% overlap to increase segments without GroupKFold leakage
+max_tracks: 20          # Debug parameter not used in final code
+trim_silence: false #[]
