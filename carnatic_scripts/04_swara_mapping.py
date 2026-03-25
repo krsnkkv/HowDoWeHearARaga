@@ -241,8 +241,11 @@ def plot_swara_trace(f0, cents_mod, swara_labels, hop_length, sr,
 
 def main():
     parser = argparse.ArgumentParser(description="Map pitch to swaras")
+    parser.add_argument("--use-gt", action="store_true",
+                        help="Use ground-truth tonic instead of estimated (default: estimated)")
+    # For backwards compatibility
     parser.add_argument("--use-estimated", action="store_true",
-                        help="Use estimated tonic instead of ground truth")
+                        help="(deprecated, now default) Use estimated tonic")
     parser.add_argument("--plot-n", type=int, default=10,
                         help="Number of diagnostic plots to generate")
     args = parser.parse_args()
@@ -269,8 +272,9 @@ def main():
     df = pd.read_csv(pitch_csv)
     print(f"Loaded {len(df)} segments")
 
-    # --- If using estimated tonic, load validation CSV
-    if args.use_estimated:
+    # --- Tonic source: estimated by default, GT only with --use-gt
+    use_estimated = not args.use_gt  # Default: estimated tonic
+    if use_estimated:
         tonic_csv = root / "data" / "processed" / "tonic_validation.csv"
         if not tonic_csv.exists():
             raise FileNotFoundError(f"Missing: {tonic_csv}. Run 03_tonic_estimation.py first.")
@@ -290,7 +294,7 @@ def main():
 
     for i, row in tqdm(df.iterrows(), total=len(df), desc="Swara mapping"):
         # Get tonic
-        if args.use_estimated and row["track_id"] in tonic_df.index:
+        if use_estimated and row["track_id"] in tonic_df.index:
             sa_hz = tonic_df.loc[row["track_id"], "estimated_tonic_hz"]
         else:
             sa_hz = row["gt_tonic_hz"]
@@ -340,7 +344,7 @@ def main():
             "raga": row["raga"],
             "segment_index": int(row["segment_index"]),
             "sa_hz_used": sa_hz,
-            "tonic_source": "estimated" if args.use_estimated else "ground_truth",
+            "tonic_source": "estimated" if use_estimated else "ground_truth",
             "swara_npz": str(trace_path.relative_to(root)).replace("\\", "/"),
             "pitch_npz": row["pitch_npz"],
             "glide_ratio": summary.get("glide_ratio", 0.0),

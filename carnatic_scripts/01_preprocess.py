@@ -54,7 +54,6 @@ def ensure_dirs(*paths: Path) -> None:
 #Two stage track filtering:
 def get_usable_tracks(ds, min_tracks_per_raga: int = 3):
     """
-
     Track Validity -> Raga label, tonic annotatin, audio file, not Ragamallika
     track id, raga, tonic hz, audio path, has pitch annot
     Class support filtering -> Counts how many tracks per raga, Keeps minimum number of tracks per raga 
@@ -116,7 +115,7 @@ def main():
 
     root = repo_root()
 
-    # --- Load config: loads sr, seg len, hop, trim
+    # --- Load config: loads sr, seg len, hop, trim into variables
     cfg = load_cfg(str(root / "configs" / "preprocessing.yaml"))
     target_sr = int(cfg["sample_rate"])
     seg_s = float(cfg["segment_seconds"])

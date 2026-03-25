@@ -62,8 +62,8 @@ def extract_pitch_crepe(y: np.ndarray, sr: int, hop_length: int = 256,
     """
     import torchcrepe
 
-    # torchcrepe expects a batch of audio tensors
-    audio_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(0).to(device)
+    # Convert audio to GPU tensor
+    audio_tensor = torch.tensor(y, dtype=torch.float32).unsqueeze(0).to(device) 
 
     # hop_length in samples → step_size in seconds isn't needed;
     # torchcrepe uses hop_length directly
@@ -71,16 +71,15 @@ def extract_pitch_crepe(y: np.ndarray, sr: int, hop_length: int = 256,
     # 'full' is most accurate, still fast on GPU
 
     pitch, periodicity = torchcrepe.predict(
-        audio_tensor,
-        sr,
-        hop_length=hop_length,
-        fmin=fmin,
-        fmax=fmax,
-        model="full",
-        return_periodicity=True,
-        batch_size=2048,
-        device=device,
-    )
+    audio_tensor, sr,
+    hop_length=256,      # Extract pitch every 256 samples (~11.6ms at 22050Hz = ~86 frames/sec)
+    fmin=65, fmax=2100,  # C2 to C7 — covers full vocal range
+    model="full",        # Most accurate CREPE model
+    return_periodicity=True,  # Also give confidence scores
+    batch_size=2048,     # Process 2048 frames at once on GPU
+    device=device,
+)
+
 
     # Move to numpy
     f0 = pitch.squeeze(0).cpu().numpy()

@@ -1,5 +1,5 @@
 """
-03_tonic_estimation.py — Stage 3: Tonic (Sa) Estimation + Validation
+03_tonic_baseline.py — Stage 3: Tonic (Sa) Estimation + Validation
 Summary: 
 Estimates tonic per track by aggregating pitch across all segments,
 then validates against Saraga ground-truth tonic annotations.
@@ -32,7 +32,6 @@ choose best tonic
 IMPROVED VERSION with:
   1. Harmonic scoring: checks for Pa (702 cents) peak alongside Sa (0 cents)
   2. Octave candidate correction: tests 2× frequency after initial estimate
-  3. Optional drone-based estimation if Saraga provides tānpura audio
 Usage:
     python carnatic_scripts/03_tonic_estimation.py
 """
