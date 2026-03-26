@@ -1,7 +1,7 @@
 """
 RagaRecognize - Streamlit Dashboard
 run with:  streamlit run app/app.py
-"""
+
 import json
 import subprocess
 import sys
@@ -1460,3 +1460,4 @@ st.sidebar.markdown("**RagaRecognize**")
 st.sidebar.caption("MEng Final Year Project 2025-26")
 st.sidebar.caption("*How Do We Hear a Raga?*")
 st.sidebar.caption("Carnatic Music · SARAGA Dataset")
+"""

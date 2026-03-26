@@ -35,3 +35,14 @@ Thumbs.db
 
 # Archives
 *.zip
+
+#TEX files
+FYP.aux
+FYP.log
+FYP.out
+FYP.tex
+
+EXTENDED_HYPOTHESIS.log
+EXTENDED_HYPOTHESIS.out
+EXTENDED_HYPOTHESIS.aux
+EXTENDED_APPENDIX.tex

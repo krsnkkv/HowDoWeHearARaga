@@ -1,173 +1,80 @@
-# **RagaRecognize**
+# How Do We Hear a Raga?
+### An Interpretable Cognitive Model of Melodic Recognition
 
-**Automatic Analysis and Recognition of Rāga Structures from Musical Audio**
+**Final Year Project — MEng Computer Science and Software Engineering**
+**University of Birmingham, 2025-26**
 
-This repository contains the code, experiments, and documentation for my Final Year Project for the MEng Computer Science and Software Engineering degree at the University of Birmingham. The project focuses on analysing pitch-based representations of musical audio to study and model rāga structure in Indian classical music.
+**Student:** Krishnasree Kelath (2540124)
+**Supervisor:** Martin Escardo
 
-## Table of Contents
-- [Project Description](#project-description)
-- [Pipeline Overview](#pipeline-overview)
-- [Getting Started](#getting-started)
-- [Weekly Plan](#weekly-plan)
-- [Project Report](#project-report)
+---
 
-## Project Description
+## Overview
 
-RagaRecognize is a project aimed at developing a system for automatic recognition and analysis of rāgas in Indian classical music. The system takes musical audio as input, performs pitch-based analysis, and uses machine learning techniques to identify the underlying rāga structure. The project focuses on both Carnatic and Hindustani classical music traditions.
+This project investigates whether an interpretable, pitch-based machine learning pipeline can model Carnatic raga recognition in a way that reflects human melodic cognition. A six-stage pipeline processes raw audio through pitch extraction, tonic estimation, swara mapping, and feature extraction, producing representations where every feature dimension has a cognitive or musicological interpretation.
 
-The main objectives of the project are:
-- To develop a robust preprocessing pipeline for audio segmentation, noise reduction, and normalization.
-- To extract pitch-based features such as pitch contours, tonic estimation, and swara mapping.
-- To model the temporal structure and characteristic phrases of rāgas using machine learning techniques like Hidden Markov Models (HMMs) and Support Vector Machines (SVMs).
-- To create an interactive frontend for users to upload audio, visualize analysis results, and explore rāga information.
+**Key results:**
+- 69.6% track accuracy on 13 ragas using just 16 dwell-time features (SVM)
+- Outperforms a BiLSTM baseline by over 24 percentage points
+- Timbral features (MFCCs) score near random chance (10.9% track), confirming raga identity is structural not timbral
+- Six hypothesis tests link results to music cognition predictions (5 confirmed, 1 informative negative)
 
-## Pipeline Overview
+## Repository Structure
 
-The RagaRecognize pipeline consists of the following stages:
-
-1. **Data Preprocessing**:
-   - Audio segmentation: Divide long-form recordings into analysis-ready excerpts.
-   - Noise reduction: Apply techniques to reduce background noise and enhance the signal.
-   - Normalization: Normalize the audio signal to a consistent level.
-
-2. **Feature Extraction**:
-   - Pitch tracking: Extract pitch contours (F0) using librosa and custom algorithms.
-   - Tonic estimation: Estimate the tonic (Sa) of the rāga using pitch distribution analysis.
-   - Swara mapping: Convert pitch values to relative intervals with respect to the estimated tonic.
-   - Pattern and sequence features: Compute transition matrices, n-gram features, and characteristic phrases.
-
-3. **Raga Classification**:
-   - Model training: Train HMM and SVM models using the extracted features.
-   - Raga prediction: Classify the input audio into the most likely rāga based on the trained models.
-
-4. **Frontend and Visualization**:
-   - User interface: Develop an intuitive frontend using Streamlit for audio upload and analysis.
-   - Visualization: Display pitch contours, tonic estimation, swara mapping, and rāga predictions.
-   - Raga information: Provide educational content about the identified rāga, including characteristic phrases and cultural context.
-
-## Getting Started
-
-To run the RagaRecognize system locally, follow these steps:
-
-1. Clone the repository:
 ```
-   git clone https://github.com/kxk224/RagaRecognize.git
-```
+carnatic_scripts/
+  01_preprocess.py           # Stage 1: Audio segmentation (SARAGA -> .wav segments + CSV)
+  02_pitch_baseline.py       # Stage 2: Pitch extraction (CREPE/pYIN)
+  03_tonic_baseline.py       # Stage 3: Tonic (Sa) estimation (harmonic scoring, 87% accuracy)
+  04_swara_mapping.py        # Stage 4: Pitch-to-swara mapping (12 bins, 40-cent tolerance)
+  05_feature_extraction.py   # Stage 5: Feature extraction (7 families, 216d core representation)
+  06_train_classifiers.py    # Stage 6: SVM + BiLSTM classification (GroupKFold, 5 folds)
+  07_hierarchical_classifier.py  # Hierarchical melakarta-based classifier (H4)
+  h4_melakarta_confusion.py  # Permutation test for within-family confusion (p=0.0004)
+  experiments/               # Tonic estimation variants, diagnostics, gamaka experiments
 
-2. Install the required dependencies:
-```
-   pip install -r requirements.txt
+configs/
+  preprocessing.yaml         # Audio parameters (sample rate, segment length, hop)
+  tonic.yaml                 # Tonic estimation parameters (candidate range, scoring)
+  swara.yaml                 # Swara bin positions and tolerance
+
+data/
+  raw/mirdata/               # SARAGA Carnatic dataset (via mirdata)
+  processed/                 # Segments CSV, pitch/swara arrays, features
+
+outputs/
+  results/                   # Classification results JSON files
+  figures/                   # Confusion matrices, model comparison charts
+
+models/                      # Trained SVM models (.pkl)
+app/app.py                   # Streamlit interactive dashboard
+docs/                        # Background research notes, weekly logs
+FYP.tex                      # Project report (LaTeX source)
+FYP.pdf                      # Project report (compiled)
 ```
 
-3. Prepare the dataset:
-   - Download the SARAGA Carnatic Music Dataset and place it in the `data/` directory.
-   - (Optional) Add additional Hindustani classical music recordings to the `data/` directory.
+## Running the Pipeline
 
-4. Run the preprocessing pipeline:
-```
-   python preprocess.py
-```
+```bash
+# Prerequisites: Python 3.9+, CUDA GPU recommended for CREPE
+pip install -r requirements.txt
 
-5. Extract features:
-```
-   python extract_features.py
-```
+# Run stages sequentially
+python carnatic_scripts/01_preprocess.py
+python carnatic_scripts/02_pitch_baseline.py
+python carnatic_scripts/03_tonic_baseline.py --method compare
+python carnatic_scripts/04_swara_mapping.py --use-estimated
+python carnatic_scripts/05_feature_extraction.py
+python carnatic_scripts/06_train_classifiers.py
 
-6. Train the models:
-```
-   python train_models.py
-```
-
-7. Launch the frontend:
-```
-   streamlit run app.py
+# Interactive dashboard
+streamlit run app/app.py
 ```
 
-## Weekly Plan
+## Dataset
 
-### Week 1: Setup and Reproducibility
+SARAGA Carnatic dataset (249 recordings, 73 usable tracks across 13 ragas after filtering) accessed via the `mirdata` Python library. Tracks require both raga labels and tonic annotations.
 
-- Finalise the repository structure and documentation
-- Define dataset selection criteria and shortlist suitable datasets
-- Implement a preprocessing pipeline to load audio, trim recordings, segment clips, and store metadata
+## Configuration
 
-Deliverable: A reproducible preprocessing pipeline with sample outputs and metadata files
-
-### Week 2: Pitch Tracking Baseline
-
-- Implement pitch extraction using `librosa.pyin`
-- Generate pitch contour plots and voiced probability visualisations
-- Manually validate results on a small set of audio clips
-
-Deliverable: A pitch tracking module with visual diagnostics for validation
-
-### Week 3: Tonic (Sa) Estimation Baseline
-
-- Implement a baseline tonic estimation method using pitch distribution analysis
-- Introduce a confidence score for the estimated tonic
-- Evaluate results on a small subset with manual sanity checks
-
-Deliverable: A tonic estimation module producing `sa_hz` values with confidence scores
-
-### Week 4: Swara Mapping (Version 1)
-
-- Convert pitch values to relative intervals with respect to the estimated tonic
-- Implement a soft mapping strategy with tolerance for ornamentation and pitch glides
-- Generate time-aligned swara traces for selected clips
-
-Deliverable: A swara mapping module with visual swara-time representations
-
-### Week 5: Pattern and Sequence Features
-
-- Compute transition matrices and n-gram features for swara sequences
-- Extract basic phrase-level statistics such as frequent transitions
-- Construct feature vectors for each audio clip
-
-Deliverable: A feature extraction module and a saved dataset of extracted features
-
-### Week 6: Baseline Classification
-
-- Train a simple classification model such as logistic regression or SVM using extracted features
-- Perform cross-validation and generate confusion matrices
-
-Deliverable: A baseline rāga classifier with quantitative performance metrics
-
-### Week 7: End-to-End Integration and Interface Demo
-
-- Integrate all pipeline components into a single end-to-end system
-- Build a Streamlit interface to upload audio and visualise tonic, pitch, swaras, patterns, and top candidate rāgas
-- Handle low-confidence predictions gracefully
-
-Deliverable: A stable end-to-end demo suitable for inspection and discussion
-
-### Week 8: Evaluation and Report Refinement
-
-- Conduct error analysis to identify common confusions between rāgas
-- Refine segmentation and smoothing parameters based on evaluation results
-- Update documentation and prepare a supervisor-ready progress summary
-
-Deliverable: An evaluation summary and a refined baseline system
-
-## Project Report
-
-### Overleaf
-
-The main project report is written in LaTeX and maintained on Overleaf: [Click here to view on Overleaf](https://www.overleaf.com/read/jfbjwcdtgppg#94c878) 
-
-### Project Structure
-
-The report follows a structured academic format aligned with University of Birmingham guidelines:
-
-- Title Page  
-- Abstract  
-- Contents  
-- Introduction  (Includes Motivation)
-- Background and Literature Review  
-- Design and Methodology  
-- System Specification and Implementation  
-- Testing and Evaluation  
-- Conclusion and Future Work  
-- Bibliography  
-- Appendices
-
-The report is designed to clearly communicate the motivation, design decisions, implementation details, and evaluation of the project in a way that supports discussion during the project inspection.
+All hyperparameters are externalised in YAML config files under `configs/`, separating experimental settings from code. See Appendix C of the report for the full parameter listing.
