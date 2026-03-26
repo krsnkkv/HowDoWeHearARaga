@@ -1,6 +1,6 @@
 # Ragas in the Dataset
 
-Reference for the 14 ragas retained after filtering (≥20 segments, ≥3 tracks).
+This document profiles each of the 13 ragas retained in the primary evaluation setting (estimated tonic, 9 catastrophic tonic failures excluded, ≥20 segments per raga, 46 tracks, 1,648 segments). For each raga, it describes the scale, musical character, classification performance (dwell_vadi track-level F1), and the musicological reasons for success or failure. The per-raga analysis directly supports the report's claims that performance correlates with musical distinctiveness rather than data quantity, and that errors are interpretable through the melakarta family structure.
 
 ## Quick Reference
 

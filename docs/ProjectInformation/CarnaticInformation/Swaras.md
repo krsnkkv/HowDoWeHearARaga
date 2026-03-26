@@ -1,5 +1,47 @@
 # Swaras (Notes) in Carnatic Music
 
+This document defines the 12-swara system used in Carnatic music, explains how the pipeline converts continuous pitch (Hz) to discrete swara labels using logarithmic cent-based distance, details the tolerance and minimum-duration parameters that govern the mapping, and describes the gamaka (ornament) and vadi/samvadi (note hierarchy) concepts that underpin the feature extraction stage. Every mathematical operation in the pipeline — cents conversion, octave folding, circular distance, and the tolerance threshold — is derived from the cognitive and musicological principles described here.
+
+## Mathematical Foundations
+
+### The Cents Scale
+
+The cent is a logarithmic unit of pitch interval. One octave = 1200 cents. The conversion from Hz to cents relative to a reference frequency (the tonic, Sa) is:
+
+```
+cents = 1200 × log₂(F0 / Sa_Hz)
+```
+
+For example, if Sa = 150 Hz and the current pitch is 225 Hz:
+```
+cents = 1200 × log₂(225 / 150) = 1200 × log₂(1.5) = 1200 × 0.585 = 702 cents
+```
+This is Pa (the perfect fifth). The logarithmic scale is essential because human pitch perception is logarithmic — equal Hz differences sound different depending on register, but equal cent differences sound the same at any register.
+
+### Octave Folding
+
+All pitches are folded into a single octave using modular arithmetic:
+```
+cents_mod = cents % 1200
+```
+This implements octave equivalence: Sa at 150 Hz and Sa at 300 Hz both map to 0 cents. Octave equivalence is a fundamental property of human pitch perception (Burns & Ward, 1978).
+
+### Circular Distance
+
+Swara bins are arranged on a circle (0–1200 cents wrapping around). The distance from a pitch to the nearest bin uses circular distance:
+```
+d = min(|cents_mod - bin|, 1200 - |cents_mod - bin|)
+```
+This ensures that a pitch at 1190 cents is correctly identified as 10 cents from Sa (0/1200), not 1190 cents away.
+
+### Harmonic Scoring (Tonic Estimation)
+
+The tonic scoring function used in Stage 3:
+```
+score(candidate) = mass(Sa, 0 cents) + 0.5 × mass(Pa, 702 cents)
+```
+where mass(note, target) is the sum of the pitch-class histogram within ±30 cents of the target. The 0.5 weight on Pa reflects the tanpura drone structure: Sa is the primary tone, Pa is the secondary reinforcement.
+
 ## The 12 Swaras
 
 Carnatic music uses 12 swara positions within one octave, measured in cents relative to Sa (the tonic). The system is roughly equivalent to the 12 chromatic notes in Western music, but with different tuning and different musical function.
@@ -27,7 +69,7 @@ Carnatic music uses 12 swara positions within one octave, measured in cents rela
 
 **Same for Da/Ni.** Da2 (900) and Ni1 (1000) are 100 cents apart. Similar logic applies.
 
-**Enharmonic pairs:** Ri2 = Ga1 in frequency (both at the same pitch class in some theoretical formulations), but they function differently depending on the raga context. Our pipeline treats them as separate bins at 200 and 300 cents.
+**Enharmonic pairs:** In some theoretical formulations, Ri2 (200 cents) and Ga1 (300 cents) can overlap when ragas use non-standard tuning, but in our equal-tempered pipeline they are treated as separate bins 100 cents apart. Their musical function differs depending on the raga context.
 
 ## Swara Mapping in the Pipeline (Stage 4)
 
