@@ -1,28 +1,37 @@
 """
 01_preprocess.py — Stage 1: Preprocessing
 
-SARAGA Audio + Metadata -> .wav segments + csv file with foundational information.
+WHAT THIS SCRIPT DOES:
+    Loads the Saraga Carnatic dataset via mirdata, applies a multi-stage filter
+    (valid raga label, ground-truth tonic annotation, audio file existence, not
+    Ragamalika, minimum tracks per raga), resamples all audio to 22,050 Hz,
+    and segments each track into overlapping 45-second windows with a 15-second
+    hop (66.7% overlap). Outputs .wav segment files and a metadata CSV recording
+    track ID, raga label, ground-truth tonic, segment index/timestamps, and file
+    paths. The minimum-tracks-per-raga filter ensures every raga has enough data
+    for GroupKFold cross-validation downstream.
 
-Loads Saraga Carnatic tracks via mirdata, filters to tracks with
-raga labels + tonic annotations, segments audio, and writes metadata CSV.
+LOGIC AND DESIGN:
+    The 45-second window was chosen to guarantee sufficient melodic content for
+    stable trigram distributions (~200 tokens per segment). The 15-second hop
+    increases training data without causing data leakage under GroupKFold, since
+    all segments from a track stay in the same fold. Two-stage filtering first
+    validates individual tracks (candidate stage), then retains only ragas with
+    enough tracks for cross-validation. Class imbalance (up to 14.6:1) is noted
+    here but handled downstream via class-weighted SVMs.
 
-Commands for runningg:
+COGNITIVE / MUSICOLOGICAL RATIONALE:
+    Overlapping segmentation mirrors how listeners experience a performance as a
+    continuous stream rather than isolated snapshots. Each 45-second window
+    contains enough melodic material for a listener to identify the raga—matching
+    evidence that trained listeners recognise ragas within seconds from
+    characteristic phrase patterns. The exclusion of Ragamalika (multi-raga
+    compositions) reflects the cognitive assumption that raga identity is stable
+    within a performance.
+
+Usage:
     python carnatic_scripts/01_preprocess.py
-    python carnatic_scripts/01_preprocess.py --min-tracks-per-raga 5   # stricter filter
-
-
-Loads the Saraga Carnatic Dataset
-Filter tracks - Valid raga label + GT tonic annotation + Audio Files + Not Ragamalika + N Tracks
-Preprocessing parameters loaded 
-Resampling to fixed rate
-Optionally trims leading/trailing silence
-Splits each track into overlapping fixed length segments
-Saves each segment as .wav 
-MIN PER RAGA -> GROUP K FILTERING
-Overlapping segmentation -> More training data, Augmentation
-CSV File: Track ID, Raga label, GT Tonic, Segment index and timestamps, File path to segment
-
-Imbalance
+    python carnatic_scripts/01_preprocess.py --min-tracks-per-raga 5
 """
 import os #Used for setting environment variables
 import csv #CSV Files writing

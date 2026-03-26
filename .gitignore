@@ -1,25 +1,37 @@
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.egg-info/
 .venv/
 .env
 
-# Data
+# Data (large, downloaded/generated)
 data/raw/
 data/processed/
 data/interim/
+data/hindustani/
+data/samples/
+
+# Models (binary, regeneratable via 06_train_classifiers.py)
+models/
+
+# Outputs (regeneratable from pipeline)
+outputs/
+
+# Backups
+backups/
+
+# IDE / Editor
+.vscode/
+.idea/
 
 # Streamlit
 .streamlit/
-
-# Outputs as well
-outputs/
 
 # OS
 .DS_Store
 Thumbs.db
 
-data/raw/
-data/processed/
+# Archives
 *.zip
-.vscode/

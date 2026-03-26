@@ -1,28 +1,46 @@
 """
-02_pitch_extraction.py -- Stage 2: Pitch Tracking (torchcrepe, GPU)
+02_pitch_extraction.py — Stage 2: Pitch Tracking (torchcrepe, GPU)
 
-Uses CREPE (deep learning pitch tracker) on GPU for fast extraction.
-Falls back to librosa.pyin on CPU if CUDA is unavailable.
+WHAT THIS SCRIPT DOES:
+    Extracts fundamental frequency (F0) contours from each audio segment using
+    CREPE, a deep-learning pitch tracker, with GPU acceleration via torchcrepe.
+    Falls back to librosa's pYIN on CPU when CUDA is unavailable. For each
+    segment, outputs a compressed .npz file containing the F0 array, confidence
+    scores, and voicing flags. Also writes a summary CSV (pitch_all.csv) with
+    one row per segment recording track ID, raga label, path to the pitch file,
+    voiced ratio, and median F0. Generates diagnostic plots overlaying the
+    extracted pitch curve and confidence over time for visual sanity checking.
 
-Audio segments in preproessing is taken 
-Pitch counter is developed: F0 over time per segment
-Voicing/Confidence scores showing prescence of melody
-Torchcrepe used for GPU Acceleration along wit Speed ; Falls back to librosa if GPU not presetn
-Each segment gets a compressed .npz file with pitch arrays and metadata
-Writes a summary csv as well with one row per sement
-Segments include track ID, Raga label, Path to pitch file, Voiced ratio
-Generates diagnostic plots swhoing extracted pitch curve and confidence over time => VISUALLY SANITYYYY
+LOGIC AND DESIGN:
+    CREPE was selected over pYIN because it achieves substantially lower raw
+    pitch error on non-Western vocal music, where heavy gamaka ornamentation
+    causes rapid pitch variation that challenges autocorrelation-based methods.
+    The hop length of 256 samples (~11.6 ms at 22,050 Hz) provides sufficient
+    temporal resolution to capture gamaka contours. A confidence threshold of
+    0.5 (CREPE's recommended default) masks low-confidence frames as unvoiced
+    (NaN), preventing downstream swara mapping from assigning labels to noise.
+    Batch GPU processing (2,048 frames per batch) enables efficient extraction
+    across the full dataset.
+
+COGNITIVE / MUSICOLOGICAL RATIONALE:
+    This stage corresponds to the auditory periphery: the cochlea performs
+    frequency analysis on incoming sound, and pitch tracking extracts the
+    melodic contour that listeners perceive. The confidence threshold mirrors
+    the perceptual phenomenon that listeners do not assign pitch to noise or
+    unvoiced sounds. Preserving the continuous F0 contour (rather than
+    immediately discretising) retains gamaka detail for downstream analysis—
+    gamakas are the continuous pitch movements that give Carnatic melody its
+    characteristic expressiveness (Krishnaswamy, 2003).
 
 OUTPUTS:
     - data/processed/pitch/pitch_all.csv  # Summary of all segments + pitch stats
-    - data/processed/pitch/*.npz          # Per-segment pitch arrays (f0, voiced_prob, etc)
-    - outputs/figures/pitch_debug/*.png   # Diagnostic plots for first N segments   
-    
-Commands:
-    python carnatic_scripts/02_pitch_extraction.py                          # full dataset, GPU
-    python carnatic_scripts/02_pitch_extraction.py --max-per-raga 10        # quick dev run
-    python carnatic_scripts/02_pitch_extraction.py --method pyin            # force pyin (CPU)
-    python carnatic_scripts/02_pitch_extraction.py --plot-n 5               # diagnostic plots
+    - data/processed/pitch/*.npz          # Per-segment pitch arrays
+    - outputs/figures/pitch_debug/*.png   # Diagnostic plots for first N segments
+
+Usage:
+    python carnatic_scripts/02_pitch_extraction.py
+    python carnatic_scripts/02_pitch_extraction.py --method pyin
+    python carnatic_scripts/02_pitch_extraction.py --plot-n 5
 """
 import argparse
 from pathlib import Path

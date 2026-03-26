@@ -1,11 +1,43 @@
 """
-05_feature_extraction.py — Stage 5: Feature Extraction (v2)
+05_feature_extraction.py — Stage 5: Feature Extraction
 
-Extracts FOUR feature representations:
-  1. Transition matrix (12×12 = 144 features)
-  2. N-gram counts (bigram + top-200 trigrams)
-  3. Pitch Class Distribution (PCD) — 120-bin histogram
-  4. MFCCs + chroma + spectral features (standard audio ML baseline)
+WHAT THIS SCRIPT DOES:
+    Extracts seven complementary feature families from swara sequences and raw
+    audio, producing a 216-dimensional cognitively-motivated representation plus
+    control features. (1) Trigrams (200d): top-200 three-swara sequence
+    frequencies after token collapse. (2) Dwell/vadi (16d): mean duration per
+    swara plus vadi/samvadi emphasis indices. (3) PCD (120d): 10-cent-resolution
+    pitch class distribution preserving sub-semitone gamaka detail. (4)
+    Transition (144d): row-normalised 12x12 swara flow matrix. (5) Directional
+    (288-552d): separate ascending/descending PCDs and transitions for
+    arohana/avarohana. (6) Auxiliary (10d): gamaka stats including glide ratio,
+    entropy, and token rate. (7) MFCC (58d): spectral envelope features as a
+    timbral control baseline. Also computes pre-stacked combinations
+    (trigram_dwell, pcd_trigram, directional_full) and saves interpretable
+    trigram vocabulary.
+
+LOGIC AND DESIGN:
+    Token collapse (consecutive same-swara runs reduced to one token, silence
+    and glide removed) is applied before trigram extraction. This separates
+    melodic contour from rhythm: a note sustained for 200 frames and one for 5
+    frames produce the same single token, while duration information is captured
+    separately by dwell features. The trigram vocabulary of 200 was chosen from
+    1,728 possible (12^3) as the point beyond which counts become too sparse
+    given ~2,100 training segments. Row-normalised transitions give P(next |
+    current), capturing the implicit grammar of permitted note sequences.
+
+COGNITIVE / MUSICOLOGICAL RATIONALE:
+    Each feature family maps to a specific cognitive mechanism reviewed in
+    Section 2 of the report. Trigrams implement statistical learning of
+    characteristic phrases (pakad) — the mechanism Saffran et al. (1996, 1999)
+    showed humans use to segment auditory streams. Dwell-time captures the note
+    prominence hierarchy that Castellano et al. (1984) found correlates with
+    listener ratings of tonal stability. Transitions encode implicit learning
+    of melodic grammar (Tillmann et al., 2000). Directional features test
+    whether the arohana/avarohana distinction (ascending/descending scales) is
+    computationally informative (H6). MFCCs are included as a deliberate
+    control: under H2 (Peretz & Coltheart's modular architecture), timbral
+    features should fail because raga identity is structural, not timbral.
 
 Usage:
     python carnatic_scripts/05_feature_extraction.py
@@ -69,6 +101,38 @@ def get_swara_token_sequence(swara_labels: np.ndarray) -> list:
             tokens.append(label)
             prev = label
     return tokens
+
+
+# EXPERIMENT: Phrase-aware trigrams (FAILED — accuracy collapsed 58% -> 18%)
+# Hypothesis: glides mark phrase boundaries, so splitting there gives cleaner phrases.
+# Reality: Carnatic gamakas CONNECT notes across phrases, not separate them.
+#          Splitting fragments real phrases into pieces too short for trigrams.
+# Reverted — kept here as documentation of the negative result.
+#
+# def get_swara_token_sequence_phrase_aware(swara_labels: np.ndarray) -> list:
+#     """Split token sequence at glide boundaries (phrase-aware version)."""
+#     phrases = []
+#     current_phrase = []
+#     prev = None
+#     for label in swara_labels:
+#         if label in ("silence", "glide"):
+#             if current_phrase:
+#                 phrases.append(current_phrase)
+#                 current_phrase = []
+#             prev = None
+#             continue
+#         if label != prev:
+#             current_phrase.append(label)
+#             prev = label
+#     if current_phrase:
+#         phrases.append(current_phrase)
+#     # Flatten: each phrase is a separate sub-sequence
+#     # Trigrams only computed WITHIN phrases, not across glide boundaries
+#     tokens = []
+#     for phrase in phrases:
+#         tokens.extend(phrase)
+#         tokens.append("BREAK")  # marker to prevent cross-phrase trigrams
+#     return [t for t in tokens if t != "BREAK"]
 
 
 def compute_transition_matrix(tokens: list) -> np.ndarray:

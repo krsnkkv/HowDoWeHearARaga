@@ -1,12 +1,42 @@
 """
-06_train_classifiers.py — Stage 6: Raga Classification (v2)
+06_train_classifiers.py — Stage 6: Raga Classification
 
-Improvements over v1:
-  - Filters low-melody segments (voiced_ratio < threshold)
-  - Uses GroupKFold (by track_id) to prevent data leakage
-  - Class-weighted SVM to handle imbalance
-  - LSTM properly uses GPU
-  - Each model variant saved with unique filename
+WHAT THIS SCRIPT DOES:
+    Trains multiple classifiers across all feature representations and evaluates
+    them under GroupKFold cross-validation. Filters low-melody segments
+    (voiced_ratio < 0.25), drops ragas with fewer than 20 segments, then trains:
+    (a) independent SVMs (RBF kernel, balanced class weights) on each feature
+    set via GridSearchCV scored by weighted F1; (b) a probability-level fusion
+    model weighting per-class vectors from top SVMs by their CV F1 scores; (c) a
+    bidirectional LSTM baseline (2 layers, 64 hidden, 32-dim embedding) on swara
+    token sequences. Track-level predictions are obtained via majority voting
+    across segment predictions. Outputs trained models, confusion matrices, a
+    model comparison chart, and a comprehensive JSON results file.
+
+LOGIC AND DESIGN:
+    GroupKFold partitions data by track_id so that all segments from a single
+    recording appear in the same fold — preventing the classifier from exploiting
+    within-track similarity (Sturm, 2014). Class-weighted SVMs (inverse
+    frequency) and weighted cross-entropy for the LSTM handle the 14.6:1 class
+    imbalance. GridSearchCV searches C in {0.1, 1, 10, 100} and gamma in
+    {scale, 0.01, 0.1}. Track-level majority voting aggregates noisy segment
+    predictions — dwell_vadi gains 19 percentage points from segment to track
+    because random tonic-induced label errors are correctable by voting, while
+    trigram errors are systematic. The LSTM uses early stopping (10 epochs
+    patience) and provides a learned-representation comparison.
+
+COGNITIVE / MUSICOLOGICAL RATIONALE:
+    The evaluation design tests six hypotheses linking feature performance to
+    cognitive predictions. GroupKFold prevents artefact learning — ensuring the
+    classifier learns raga-level patterns, not recording-specific signatures.
+    The comparison between interpretable features (trigram, dwell) and the LSTM
+    tests whether hand-crafted cognitive representations outperform learned ones
+    under data scarcity — the cognitive parsimony prediction (Gigerenzer, 1999)
+    that simpler models using fewer, theoretically motivated cues outperform
+    exhaustive ones in noisy, low-data environments. The MFCC control baseline
+    tests Peretz and Coltheart's (2003) modularity prediction. Majority voting
+    mirrors cognitive evidence accumulation: listeners integrate melodic evidence
+    over time to converge on a raga identification.
 
 Usage:
     python carnatic_scripts/06_train_classifiers.py
@@ -26,14 +56,12 @@ matplotlib.use("Agg")  # headless backend for saving plots without a display
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-from sklearn.svm import SVC
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.model_selection import GroupKFold, cross_val_predict, GridSearchCV, StratifiedKFold  # some imports unused; ok for experimentation
-from sklearn.metrics import (
-    classification_report, confusion_matrix, accuracy_score, f1_score
-)
-from sklearn.pipeline import Pipeline
-from sklearn.base import clone
+from sklearn.svm import SVC                    # The SVM classifier
+from sklearn.preprocessing import LabelEncoder, StandardScaler  # Label encoding + feature scaling
+from sklearn.model_selection import GroupKFold, GridSearchCV     # CV + hyperparameter search
+from sklearn.metrics import classification_report, confusion_matrix, accuracy_score, f1_score
+from sklearn.pipeline import Pipeline           # Chain scaler + SVM together
+from sklearn.base import clone                  # Copy a model for each fold
 
 from tqdm import tqdm  # (unused rn) but handy if you add progress bars later
 
