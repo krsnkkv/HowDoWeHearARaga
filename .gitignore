@@ -48,13 +48,8 @@ EXTENDED_HYPOTHESIS.aux
 EXTENDED_APPENDIX.tex
 
 .claude/
-assets/pipeline_diagram.png
 assets
-carnatic_scripts/
-docs/EXTENDED_APPENDIX.pdf
-docs/HYPOTHESIS_AND_EXPERIMENTS.md
-docs/ProjectInformation/
-docs/wrap_up_slides.pptx
-hindustani_scripts
-docs/HYPOTHESES_AND_EXPERIMENTS.md
+docs\HYPOTHESES_AND_EXPERIMENTS.md
 
+#hindustani scripts
+#carnaticexperiemnts
