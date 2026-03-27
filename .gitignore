@@ -15,7 +15,6 @@ data/samples/
 data
 
 # Models (binary, regeneratable via 06_train_classifiers.py)
-models/
 
 # Backups
 backups/
@@ -40,18 +39,14 @@ FYP.tex
 EXTENDED_HYPOTHESIS.log
 EXTENDED_HYPOTHESIS.out
 EXTENDED_HYPOTHESIS.aux
-EXTENDED_APPENDIX.tex
 
 .claude/
-docs\HYPOTHESES_AND_EXPERIMENTS.md
 
 #hindustani scripts
 
 EXTENDED_APPENDIX.log
 EXTENDED_APPENDIX.out
 EXTENDED_APPENDIX.aux
-EXTENDED_APPENDIX.tex
+EXTENDED_APPENDIX.toc
 
-outputs
-models
 texput.log
