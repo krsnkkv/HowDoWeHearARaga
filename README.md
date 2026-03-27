@@ -6,7 +6,7 @@
 **Student:** Krishnasree Kelath (2540124)
 **Supervisor:** Martin Escardo
 
-**Final Report:** [`FYP.pdf`](FYP.pdf) | **Extended Appendix:** [`EXTENDED_APPENDIX.pdf`](EXTENDED_APPENDIX.pdf)
+**Final Report:** [`FYP.pdf`](FinalReport/FYP.pdf) | **Extended Appendix:** [`EXTENDED_APPENDIX.pdf`](FinalReport/EXTENDED_APPENDIX.pdf)
 
 ---
 
@@ -62,7 +62,9 @@ hindustani_scripts/          # Cross-tradition pilot pipeline (SARAGA Hindustani
 
 FinalReport/
   FYP.tex                    # Main report LaTeX source
+  FYP.pdf                    # Compiled project report
   EXTENDED_APPENDIX.tex      # Extended appendix LaTeX source
+  EXTENDED_APPENDIX.pdf      # Compiled extended appendix
 
 configs/
   preprocessing.yaml         # Audio: 22050 Hz, 45s segments, 15s hop
@@ -70,11 +72,11 @@ configs/
   swara.yaml                 # Swara: 12 bins (0-1100 cents), 40-cent tolerance
 
 data/
-  raw/                       # SARAGA datasets (downloaded via mirdata, not tracked in git)
-  interim/                   # Segmented .wav clips (45s windows from Stage 1)
   processed/                 # Segments CSV, pitch/swara arrays, feature matrices, tonic CSVs
-  samples/                   # Sample audio files for testing
-  hindustani/                # Hindustani pilot data (interim + processed)
+    features/                # Feature matrices (.npz) and vocab files
+    pitch/                   # Per-segment pitch arrays (.npz)
+    swara/                   # Per-segment swara arrays (.npz)
+    tonic_*.csv              # Tonic validation results for various methods
 
 outputs/
   results/                   # Classification results JSON, H4 permutation results
@@ -91,7 +93,7 @@ outputs/
   hindustani/                # Parallel Hindustani results and figures
   FOLDERBREAKDOWN.md         # Detailed file breakdown for this folder
 
-models/                      # Trained SVM models (.pkl)
+models/                      # Trained SVM models (.pkl) and label encoders
   hindustani/                # Hindustani pilot models
 
 docs/                        # Background research, weekly progress logs
@@ -99,8 +101,7 @@ docs/                        # Background research, weekly progress logs
   WeeklyUpdates/             # Weekly progress slides and logs
   FOLDERBREAKDOWN.md         # Detailed file breakdown for this folder
 
-FYP.pdf                      # Project report (compiled from FinalReport/FYP.tex)
-EXTENDED_APPENDIX.pdf        # Extended appendix (compiled from FinalReport/EXTENDED_APPENDIX.tex)
+requirements.txt             # Python dependencies
 ```
 
 ## Running the Pipeline

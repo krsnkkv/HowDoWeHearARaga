@@ -1,6 +1,6 @@
 # docs/ — Documentation and Background
 
-The main report (`FinalReport/FYP.tex` / `FYP.pdf`) and extended appendix (`FinalReport/EXTENDED_APPENDIX.tex` / `EXTENDED_APPENDIX.pdf`) are in the repository. LaTeX sources are in `FinalReport/`, compiled PDFs are in the repository root.
+The main report and extended appendix are in `FinalReport/` — both the LaTeX sources (`.tex`) and compiled PDFs (`.pdf`).
 
 ## ProjectInformation/
 
