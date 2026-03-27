@@ -12,12 +12,10 @@ data/processed/
 data/interim/
 data/hindustani/
 data/samples/
+data
 
 # Models (binary, regeneratable via 06_train_classifiers.py)
 models/
-
-# Outputs (regeneratable from pipeline)
-outputs/
 
 # Backups
 backups/
@@ -25,9 +23,6 @@ backups/
 # IDE / Editor
 .vscode/
 .idea/
-
-# Streamlit
-.streamlit/
 
 # OS
 .DS_Store
@@ -48,8 +43,15 @@ EXTENDED_HYPOTHESIS.aux
 EXTENDED_APPENDIX.tex
 
 .claude/
-assets
 docs\HYPOTHESES_AND_EXPERIMENTS.md
 
 #hindustani scripts
-#carnaticexperiemnts
+
+EXTENDED_APPENDIX.log
+EXTENDED_APPENDIX.out
+EXTENDED_APPENDIX.aux
+EXTENDED_APPENDIX.tex
+
+outputs
+models
+texput.log
