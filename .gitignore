@@ -8,13 +8,10 @@ __pycache__/
 
 # Data (large, downloaded/generated)
 data/raw/
-data/processed/
 data/interim/
 data/hindustani/
 data/samples/
-data
 
-# Models (binary, regeneratable via 06_train_classifiers.py)
 
 # Backups
 backups/
@@ -36,10 +33,7 @@ FYP.log
 FYP.out
 FYP.tex
 
-EXTENDED_HYPOTHESIS.log
-EXTENDED_HYPOTHESIS.out
-EXTENDED_HYPOTHESIS.aux
-
+#AI Assistance
 .claude/
 
 #hindustani scripts
