@@ -7,7 +7,7 @@
 | `classification_results_excl-est.json` | **Primary results** — estimated tonic with bad-tonic tracks excluded (13 ragas, 46 tracks). This is what the report tables use. |
 | `classification_results_est.json` | Estimated tonic, all tracks included (14 ragas, 53 tracks). Used for tonic ablation comparison in the appendix. |
 | `classification_results_gt.json` | Ground-truth tonic results (13 ragas, 53 tracks). Upper bound on performance if tonic estimation were perfect. |
-| `h4_melakarta_results.json` | H4 permutation test results — within/between family confusion rates (5.44x ratio), p-value (< 0.0001), family mapping, top confusions |
+| `h4_melakarta_results.json` | H4 permutation test results — within/between family confusion rates (5.19x ratio), p-value (< 0.0001), family mapping, top confusions |
 
 ## figures/
 
@@ -17,7 +17,7 @@ Confusion matrices and model comparison charts from stage 06.
 - `cm_fusion_pitch.png` — probability fusion confusion matrix
 - `cm_LSTM_swara_seq.png` — BiLSTM confusion matrix
 - `model_comparison.png` — bar chart comparing segment vs track accuracy across all models
-- Subfolder per run mode (e.g., `est/`, `excl-est/`, `gt/`) when multiple tonic conditions are evaluated
+- Subfolder per run mode: `est/`, `excl-est/`, `gt/` (by tonic condition), `gamaka/` (gamaka feature experiments), `previous_runs/` (archived earlier model runs)
 
 ### features/
 Per-raga feature visualisations from stage 05.
@@ -51,6 +51,9 @@ H4 hypothesis test visualisations.
 ### hierarchical/
 Hierarchical classifier experiment outputs.
 - `block_comparison.png` — flat vs hierarchical vs oracle comparison
+
+### pipeline_diagram.png
+System architecture diagram showing the six-stage pipeline from audio to classification.
 
 ### class_distribution.png
 Dataset class balance chart — segment counts per raga, coloured by melakarta family.

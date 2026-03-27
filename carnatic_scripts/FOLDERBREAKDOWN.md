@@ -23,7 +23,7 @@ Run modes for stage 06: `--run-mode est` (all tracks, estimated tonic), `--run-m
 | `03_tonic_ensemble_v2.py` | Harmonic-first ensemble (prefer harmonic, fall back to sa_mass) | Marginal, not worth added complexity |
 | `03_tonic_segment_voting.py` | Per-segment tonic estimation with majority voting across segments | No improvement over track-level pooling |
 | `03_tonic_swara_validated.py` | Swara hit-rate as tonic validation signal (unsupervised consistency check) | Comparable to harmonic alone |
-| `demucs_tonic_estimation.py` | Demucs vocal separation before pitch extraction | Did not surpass 87% baseline |
+| `demucs_tonic_estimation.py` | Demucs vocal separation before pitch extraction | Did not surpass 82.2% baseline |
 | `hpss_tonic_estimation.py` | Harmonic-percussive separation before pitch extraction | Marginal improvement on few tracks |
 | `gamaka_experiment.py` | Continuous pitch contour features (pitch slope, per-swara gamaka profiles) | Pan-raga — no discriminative power |
 | `07_hierarchical_classifier.py` | Two-level melakarta hierarchy (L1 family routing, L2 within-family) | Flat baseline matches or exceeds hierarchy |

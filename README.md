@@ -1,7 +1,7 @@
 # How Do We Hear a Raga?
 ### An Interpretable Cognitive Model of Melodic Recognition
 **Final Year Project — MEng Computer Science and Software Engineering**
-**University of Birmingham, 2025-26**
+**School of Computer Science — University of Birmingham, 2025-26**
 
 **Student:** Krishnasree Kelath (2540124)
 **Supervisor:** Martin Escardo
@@ -49,14 +49,20 @@ Random chance baseline: 7.7% (1/13); majority-class baseline: 17.4%.
 carnatic_scripts/
   01_preprocess.py           # Stage 1: Audio segmentation (SARAGA -> 45s segments + CSV)
   02_pitch_baseline.py       # Stage 2: Pitch extraction (CREPE on GPU, pYIN fallback)
-  03_tonic_baseline.py       # Stage 3: Tonic (Sa) estimation (harmonic scoring, 87%)
+  03_tonic_baseline.py       # Stage 3: Tonic (Sa) estimation (harmonic scoring, 82.2%)
   04_swara_mapping.py        # Stage 4: Pitch-to-swara mapping (12 bins, 40-cent tolerance)
   05_feature_extraction.py   # Stage 5: Feature extraction (7 families + 2 experimental)
   06_train_classifiers.py    # Stage 6: SVM + BiLSTM classification (GroupKFold, 5 folds)
   experiments/               # Tonic variants, gamaka, hierarchical, H4 permutation test
+  FOLDERBREAKDOWN.md         # Detailed file breakdown for this folder
 
 hindustani_scripts/          # Cross-tradition pilot pipeline (SARAGA Hindustani)
+  01_preprocess.py–06_train_classifiers.py  # Parallel pipeline stages
   run_hindustani.py          # Pipeline orchestrator with --from-stage resume
+
+FinalReport/
+  FYP.tex                    # Main report LaTeX source
+  EXTENDED_APPENDIX.tex      # Extended appendix LaTeX source
 
 configs/
   preprocessing.yaml         # Audio: 22050 Hz, 45s segments, 15s hop
@@ -64,17 +70,37 @@ configs/
   swara.yaml                 # Swara: 12 bins (0-1100 cents), 40-cent tolerance
 
 data/
-  raw/mirdata/               # SARAGA Carnatic dataset (via mirdata)
-  processed/                 # Segments CSV, pitch/swara arrays, feature matrices
+  raw/                       # SARAGA datasets (downloaded via mirdata, not tracked in git)
+  interim/                   # Segmented .wav clips (45s windows from Stage 1)
+  processed/                 # Segments CSV, pitch/swara arrays, feature matrices, tonic CSVs
+  samples/                   # Sample audio files for testing
+  hindustani/                # Hindustani pilot data (interim + processed)
 
 outputs/
   results/                   # Classification results JSON, H4 permutation results
   figures/                   # Confusion matrices, model comparison, feature plots
+    classification/          # est/, excl-est/, gt/ (by tonic condition), gamaka/, previous_runs/
+    features/                # Per-raga PCDs, transition matrices, directional PCDs
+    tonic_validation/        # Tonic error histograms, method comparison
+    pitch_debug/             # CREPE F0 contour diagnostics
+    swara_debug/             # Swara mapping overlays
+    h4_melakarta/            # Family confusion analysis, permutation test
+    hierarchical/            # Hierarchical vs flat classifier comparison
+    pipeline_diagram.png     # System architecture diagram
+    class_distribution.png   # Dataset class balance chart
+  hindustani/                # Parallel Hindustani results and figures
+  FOLDERBREAKDOWN.md         # Detailed file breakdown for this folder
 
 models/                      # Trained SVM models (.pkl)
-docs/                        # Background research notes, weekly progress logs
-FYP.pdf                      # Project report (compiled)
-EXTENDED_APPENDIX.pdf        # Extended appendix (compiled)
+  hindustani/                # Hindustani pilot models
+
+docs/                        # Background research, weekly progress logs
+  ProjectInformation/        # Carnatic music theory notes (melakartas, ragas, swaras)
+  WeeklyUpdates/             # Weekly progress slides and logs
+  FOLDERBREAKDOWN.md         # Detailed file breakdown for this folder
+
+FYP.pdf                      # Project report (compiled from FinalReport/FYP.tex)
+EXTENDED_APPENDIX.pdf        # Extended appendix (compiled from FinalReport/EXTENDED_APPENDIX.tex)
 ```
 
 ## Running the Pipeline
@@ -125,13 +151,13 @@ Two experimental variants (fourgram, phrase-aware trigram) are included as negat
 | H5 | Dwell-time captures vadi emphasis | Confirmed |
 | H6 | Directional encoding improves accuracy | Informative negative |
 
-## Folder Documentation
+## Folder Breakdown
 
-Each major folder contains its own organisation document:
+Each major folder contains a `FOLDERBREAKDOWN.md` file with a detailed breakdown of every file in that folder, its purpose, and how it connects to the rest of the project:
 
-- [`carnatic_scripts/ORGANIZATION.md`](carnatic_scripts/ORGANIZATION.md) — pipeline stages 01–06, experiment scripts, dependencies
-- [`docs/ORGANIZATION.md`](docs/ORGANIZATION.md) — background research, weekly progress logs
-- [`outputs/ORGANIZATION.md`](outputs/ORGANIZATION.md) — results files, figures, and their interpretations
+- [`carnatic_scripts/FOLDERBREAKDOWN.md`](carnatic_scripts/FOLDERBREAKDOWN.md) — pipeline stages 01–06, experiment scripts, dependencies
+- [`docs/FOLDERBREAKDOWN.md`](docs/FOLDERBREAKDOWN.md) — background research, weekly progress logs
+- [`outputs/FOLDERBREAKDOWN.md`](outputs/FOLDERBREAKDOWN.md) — results files, figures, and their interpretations
 
 ## Configuration
 
