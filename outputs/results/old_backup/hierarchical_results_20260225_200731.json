@@ -1,0 +1,217 @@
+{
+  "run_timestamp": "20260225_200731",
+  "config": {
+    "l1_feature": "directional_pcd",
+    "l2_feature": "directional_transition",
+    "cv_folds": 5,
+    "conf_threshold": 0.6,
+    "routing_mode": "soft (τ=0.60)",
+    "svm_C": 1.0,
+    "svm_gamma": "scale",
+    "min_voiced_ratio": 0.25,
+    "min_segments_per_raga": 20
+  },
+  "dataset": {
+    "n_segments": 2107,
+    "n_ragas": 14,
+    "n_families": 9,
+    "n_tracks": 53,
+    "family_structure": {
+      "Behag_group": [
+        "Behāg"
+      ],
+      "Harikāmbhōji_mela": [
+        "Bēgaḍa",
+        "Harikāmbhōji",
+        "Kamās",
+        "Kāṁbhōji",
+        "Mōhanaṁ"
+      ],
+      "Jonpuri_group": [
+        "Jōnpuri"
+      ],
+      "Mechakalyani_mela": [
+        "Kalyāṇi"
+      ],
+      "Natabhairavi_mela": [
+        "Bhairavi",
+        "Sindhubhairavi"
+      ],
+      "Ritigaula_group": [
+        "Rītigauḷa"
+      ],
+      "Saveri_group": [
+        "Sāvēri"
+      ],
+      "Shanmukhapriya_mela": [
+        "Ṣanmukhapriya"
+      ],
+      "Subhapantuvarali_mela": [
+        "Tōḍi"
+      ]
+    }
+  },
+  "results": {
+    "block_A": {
+      "seg_acc": 0.5600379686758424,
+      "seg_f1w": 0.5356241283345816,
+      "seg_f1m": 0.39350878318340937,
+      "trk_acc": 0.5283018867924528,
+      "trk_f1w": 0.490815997419771,
+      "trk_f1m": 0.4443528693528694
+    },
+    "block_B": {
+      "seg_acc": 0.540579022306597,
+      "seg_f1w": 0.5219027475718189,
+      "seg_f1m": 0.3787180035725441,
+      "trk_acc": 0.49056603773584906,
+      "trk_f1w": 0.4736298292902067,
+      "trk_f1m": 0.4332766439909297
+    },
+    "block_C": {
+      "seg_acc": 0.5671570953962981,
+      "seg_f1w": 0.5475870901501431,
+      "seg_f1m": 0.39349395399580805,
+      "trk_acc": 0.5094339622641509,
+      "trk_f1w": 0.47629069044163386,
+      "trk_f1m": 0.4240580847723705
+    }
+  },
+  "error_attribution": {
+    "n_total": 2107,
+    "n_errors": 968,
+    "n_routed": 1721,
+    "n_fallback": 386,
+    "fallback_errors": 243,
+    "n_misrouted": 161,
+    "misroute_errors": 161,
+    "within_family_errors": 564,
+    "pct_routed": 81.7,
+    "pct_errors_from_misrouting": 16.6,
+    "pct_errors_within_family": 58.3
+  },
+  "within_family_delta": [
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Bēgaḍa",
+      "flat_acc": 0.4483,
+      "hier_acc": 0.3966,
+      "oracle_acc": 0.4023,
+      "delta_hier": -0.0517,
+      "delta_oracle": -0.046,
+      "n_segments": 174
+    },
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Harikāmbhōji",
+      "flat_acc": 0.0,
+      "hier_acc": 0.0,
+      "oracle_acc": 0.0,
+      "delta_hier": 0.0,
+      "delta_oracle": 0.0,
+      "n_segments": 129
+    },
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Kamās",
+      "flat_acc": 0.5,
+      "hier_acc": 0.2807,
+      "oracle_acc": 0.3158,
+      "delta_hier": -0.2193,
+      "delta_oracle": -0.1842,
+      "n_segments": 114
+    },
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Kāṁbhōji",
+      "flat_acc": 0.2481,
+      "hier_acc": 0.2481,
+      "oracle_acc": 0.2597,
+      "delta_hier": 0.0,
+      "delta_oracle": 0.0116,
+      "n_segments": 258
+    },
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Mōhanaṁ",
+      "flat_acc": 0.3824,
+      "hier_acc": 0.3353,
+      "oracle_acc": 0.3471,
+      "delta_hier": -0.0471,
+      "delta_oracle": -0.0353,
+      "n_segments": 170
+    },
+    {
+      "family": "Natabhairavi_mela",
+      "raga": "Bhairavi",
+      "flat_acc": 0.8716,
+      "hier_acc": 0.8852,
+      "oracle_acc": 1.0,
+      "delta_hier": 0.0137,
+      "delta_oracle": 0.1284,
+      "n_segments": 366
+    },
+    {
+      "family": "Natabhairavi_mela",
+      "raga": "Sindhubhairavi",
+      "flat_acc": 0.0,
+      "hier_acc": 0.0,
+      "oracle_acc": 0.0,
+      "delta_hier": 0.0,
+      "delta_oracle": 0.0,
+      "n_segments": 25
+    }
+  ],
+  "fold_stats": [
+    {
+      "fold": 1,
+      "flat_acc": 0.7725118483412322,
+      "hier_acc": 0.7535545023696683,
+      "oracle_acc": 0.7962085308056872,
+      "l1_acc": 0.8127962085308057,
+      "n_routed": 354,
+      "n_val": 422,
+      "routed_pct": 83.9
+    },
+    {
+      "fold": 2,
+      "flat_acc": 0.5497630331753555,
+      "hier_acc": 0.5402843601895735,
+      "oracle_acc": 0.5450236966824644,
+      "l1_acc": 0.7606635071090048,
+      "n_routed": 326,
+      "n_val": 422,
+      "routed_pct": 77.3
+    },
+    {
+      "fold": 3,
+      "flat_acc": 0.39667458432304037,
+      "hier_acc": 0.4156769596199525,
+      "oracle_acc": 0.44418052256532065,
+      "l1_acc": 0.8218527315914489,
+      "n_routed": 349,
+      "n_val": 421,
+      "routed_pct": 82.9
+    },
+    {
+      "fold": 4,
+      "flat_acc": 0.5083135391923991,
+      "hier_acc": 0.501187648456057,
+      "oracle_acc": 0.503562945368171,
+      "l1_acc": 0.7790973871733967,
+      "n_routed": 302,
+      "n_val": 421,
+      "routed_pct": 71.7
+    },
+    {
+      "fold": 5,
+      "flat_acc": 0.5724465558194775,
+      "hier_acc": 0.4916864608076009,
+      "oracle_acc": 0.5463182897862233,
+      "l1_acc": 0.9287410926365796,
+      "n_routed": 390,
+      "n_val": 421,
+      "routed_pct": 92.6
+    }
+  ]
+}

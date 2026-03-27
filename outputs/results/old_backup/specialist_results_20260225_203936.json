@@ -1,0 +1,159 @@
+{
+  "run_timestamp": "20260225_203936",
+  "mode": "specialist",
+  "config": {
+    "focused_family": "Harikāmbhōji_mela",
+    "flat_fusion": true,
+    "l1_feature": "directional_pcd",
+    "l2_model": "svm",
+    "l2_feature": "directional_transition",
+    "cv_folds": 5,
+    "conf_threshold": 0.0,
+    "routing_mode": "hard (no fallback)",
+    "min_voiced_ratio": 0.25,
+    "min_segments_per_raga": 20
+  },
+  "dataset": {
+    "n_segments": 2107,
+    "n_ragas": 14,
+    "n_families": 9,
+    "n_tracks": 53,
+    "focused_family_ragas": [
+      "Bēgaḍa",
+      "Harikāmbhōji",
+      "Kamās",
+      "Kāṁbhōji",
+      "Mōhanaṁ"
+    ]
+  },
+  "results": {
+    "block_A": {
+      "seg_acc": 0.5624110109159943,
+      "seg_f1w": 0.5458867489464226,
+      "seg_f1m": 0.41657166968874515,
+      "trk_acc": 0.5094339622641509,
+      "trk_f1w": 0.49232214326553947,
+      "trk_f1m": 0.4555890538033395
+    },
+    "block_B": {
+      "seg_acc": 0.5457997152349312,
+      "seg_f1w": 0.5331510739056731,
+      "seg_f1m": 0.39430781349440863,
+      "trk_acc": 0.4528301886792453,
+      "trk_f1w": 0.4412398921832884,
+      "trk_f1m": 0.4017290249433106
+    },
+    "block_C": {
+      "seg_acc": 0.5533934504034171,
+      "seg_f1w": 0.5439446626465372,
+      "seg_f1m": 0.4112336994670459,
+      "trk_acc": 0.49056603773584906,
+      "trk_f1w": 0.4720311135405475,
+      "trk_f1m": 0.4232463964606822
+    }
+  },
+  "within_family_delta": [
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Bēgaḍa",
+      "flat_acc": 0.4195,
+      "hier_acc": 0.3966,
+      "oracle_acc": 0.4023,
+      "delta_hier": -0.023,
+      "delta_oracle": -0.0172,
+      "n_segments": 174
+    },
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Harikāmbhōji",
+      "flat_acc": 0.0,
+      "hier_acc": 0.0,
+      "oracle_acc": 0.0,
+      "delta_hier": 0.0,
+      "delta_oracle": 0.0,
+      "n_segments": 129
+    },
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Kamās",
+      "flat_acc": 0.4211,
+      "hier_acc": 0.2632,
+      "oracle_acc": 0.3158,
+      "delta_hier": -0.1579,
+      "delta_oracle": -0.1053,
+      "n_segments": 114
+    },
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Kāṁbhōji",
+      "flat_acc": 0.2442,
+      "hier_acc": 0.2519,
+      "oracle_acc": 0.2597,
+      "delta_hier": 0.0078,
+      "delta_oracle": 0.0155,
+      "n_segments": 258
+    },
+    {
+      "family": "Harikāmbhōji_mela",
+      "raga": "Mōhanaṁ",
+      "flat_acc": 0.3941,
+      "hier_acc": 0.3471,
+      "oracle_acc": 0.3471,
+      "delta_hier": -0.0471,
+      "delta_oracle": -0.0471,
+      "n_segments": 170
+    }
+  ],
+  "fold_stats": [
+    {
+      "fold": 1,
+      "flat_acc": 0.7748815165876777,
+      "spec_acc": 0.7511848341232228,
+      "oracle_acc": 0.7630331753554502,
+      "l1_bin_acc": 0.9715639810426541,
+      "n_routed": 42,
+      "n_val": 422,
+      "routed_pct": 10.0
+    },
+    {
+      "fold": 2,
+      "flat_acc": 0.5260663507109005,
+      "spec_acc": 0.5355450236966824,
+      "oracle_acc": 0.5355450236966824,
+      "l1_bin_acc": 0.9691943127962085,
+      "n_routed": 163,
+      "n_val": 422,
+      "routed_pct": 38.6
+    },
+    {
+      "fold": 3,
+      "flat_acc": 0.4180522565320665,
+      "spec_acc": 0.43942992874109266,
+      "oracle_acc": 0.45605700712589076,
+      "l1_bin_acc": 0.9144893111638955,
+      "n_routed": 234,
+      "n_val": 421,
+      "routed_pct": 55.6
+    },
+    {
+      "fold": 4,
+      "flat_acc": 0.5225653206650831,
+      "spec_acc": 0.517814726840855,
+      "oracle_acc": 0.517814726840855,
+      "l1_bin_acc": 0.9691211401425178,
+      "n_routed": 125,
+      "n_val": 421,
+      "routed_pct": 29.7
+    },
+    {
+      "fold": 5,
+      "flat_acc": 0.5700712589073634,
+      "spec_acc": 0.4845605700712589,
+      "oracle_acc": 0.49406175771971494,
+      "l1_bin_acc": 0.9477434679334917,
+      "n_routed": 263,
+      "n_val": 421,
+      "routed_pct": 62.5
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "feature": "dwell_vadi",
+  "segment_accuracy": 0.5054611650485437,
+  "n_ragas": 13,
+  "ragas": [
+    "Behāg",
+    "Bhairavi",
+    "Bēgaḍa",
+    "Harikāmbhōji",
+    "Jōnpuri",
+    "Kalyāṇi",
+    "Kamās",
+    "Kāṁbhōji",
+    "Mōhanaṁ",
+    "Sindhubhairavi",
+    "Sāvēri",
+    "Tōḍi",
+    "Ṣanmukhapriya"
+  ],
+  "within_family_confusion_rate": 0.1648569470221976,
+  "between_family_confusion_rate": 0.03175382860255627,
+  "within_over_between_ratio": 5.191718739986087,
+  "observed_difference": 0.13310311841964134,
+  "p_value": 0.0,
+  "n_permutations": 10000,
+  "significant": true,
+  "n_within_family_pairs": 18,
+  "n_between_family_pairs": 138,
+  "family_mapping": {
+    "Behāg": "29_Shankarabharanam",
+    "Bhairavi": "20_Natabhairavi",
+    "Bēgaḍa": "29_Shankarabharanam",
+    "Harikāmbhōji": "28_Harikambhoji",
+    "Jōnpuri": "20_Natabhairavi",
+    "Kalyāṇi": "65_Kalyani",
+    "Kamās": "28_Harikambhoji",
+    "Kāṁbhōji": "28_Harikambhoji",
+    "Mōhanaṁ": "28_Harikambhoji",
+    "Sindhubhairavi": "08_Hanumatodi",
+    "Sāvēri": "15_Mayamalavagowla",
+    "Tōḍi": "08_Hanumatodi",
+    "Ṣanmukhapriya": "56_Sanmukhapriya"
+  },
+  "top_confusions": [
+    {
+      "true_raga": "Sindhubhairavi",
+      "pred_raga": "Tōḍi",
+      "error_rate": 0.6,
+      "same_family": true,
+      "family_true": "08_Hanumatodi",
+      "family_pred": "08_Hanumatodi"
+    },
+    {
+      "true_raga": "Kāṁbhōji",
+      "pred_raga": "Harikāmbhōji",
+      "error_rate": 0.3644067796610169,
+      "same_family": true,
+      "family_true": "28_Harikambhoji",
+      "family_pred": "28_Harikambhoji"
+    },
+    {
+      "true_raga": "Jōnpuri",
+      "pred_raga": "Bhairavi",
+      "error_rate": 0.3448275862068966,
+      "same_family": true,
+      "family_true": "20_Natabhairavi",
+      "family_pred": "20_Natabhairavi"
+    },
+    {
+      "true_raga": "Sindhubhairavi",
+      "pred_raga": "Jōnpuri",
+      "error_rate": 0.28,
+      "same_family": false,
+      "family_true": "08_Hanumatodi",
+      "family_pred": "20_Natabhairavi"
+    },
+    {
+      "true_raga": "Kalyāṇi",
+      "pred_raga": "Behāg",
+      "error_rate": 0.25925925925925924,
+      "same_family": false,
+      "family_true": "65_Kalyani",
+      "family_pred": "29_Shankarabharanam"
+    },
+    {
+      "true_raga": "Kamās",
+      "pred_raga": "Harikāmbhōji",
+      "error_rate": 0.21929824561403508,
+      "same_family": true,
+      "family_true": "28_Harikambhoji",
+      "family_pred": "28_Harikambhoji"
+    },
+    {
+      "true_raga": "Bēgaḍa",
+      "pred_raga": "Harikāmbhōji",
+      "error_rate": 0.21839080459770116,
+      "same_family": false,
+      "family_true": "29_Shankarabharanam",
+      "family_pred": "28_Harikambhoji"
+    },
+    {
+      "true_raga": "Ṣanmukhapriya",
+      "pred_raga": "Tōḍi",
+      "error_rate": 0.21774193548387097,
+      "same_family": false,
+      "family_true": "56_Sanmukhapriya",
+      "family_pred": "08_Hanumatodi"
+    },
+    {
+      "true_raga": "Kāṁbhōji",
+      "pred_raga": "Kamās",
+      "error_rate": 0.211864406779661,
+      "same_family": true,
+      "family_true": "28_Harikambhoji",
+      "family_pred": "28_Harikambhoji"
+    },
+    {
+      "true_raga": "Harikāmbhōji",
+      "pred_raga": "Kāṁbhōji",
+      "error_rate": 0.20930232558139536,
+      "same_family": true,
+      "family_true": "28_Harikambhoji",
+      "family_pred": "28_Harikambhoji"
+    },
+    {
+      "true_raga": "Kāṁbhōji",
+      "pred_raga": "Mōhanaṁ",
+      "error_rate": 0.2033898305084746,
+      "same_family": true,
+      "family_true": "28_Harikambhoji",
+      "family_pred": "28_Harikambhoji"
+    },
+    {
+      "true_raga": "Behāg",
+      "pred_raga": "Kalyāṇi",
+      "error_rate": 0.2,
+      "same_family": false,
+      "family_true": "29_Shankarabharanam",
+      "family_pred": "65_Kalyani"
+    },
+    {
+      "true_raga": "Ṣanmukhapriya",
+      "pred_raga": "Jōnpuri",
+      "error_rate": 0.18548387096774194,
+      "same_family": false,
+      "family_true": "56_Sanmukhapriya",
+      "family_pred": "20_Natabhairavi"
+    },
+    {
+      "true_raga": "Bēgaḍa",
+      "pred_raga": "Mōhanaṁ",
+      "error_rate": 0.1781609195402299,
+      "same_family": false,
+      "family_true": "29_Shankarabharanam",
+      "family_pred": "28_Harikambhoji"
+    },
+    {
+      "true_raga": "Ṣanmukhapriya",
+      "pred_raga": "Bhairavi",
+      "error_rate": 0.1774193548387097,
+      "same_family": false,
+      "family_true": "56_Sanmukhapriya",
+      "family_pred": "20_Natabhairavi"
+    }
+  ]
+}
