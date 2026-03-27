@@ -91,7 +91,7 @@ Each design decision, each feature, and each result in this report is examined f
   \item Statistical evidence that classifier confusion follows musicological kinship: within-family confusion is $5.19\times$ higher than between-family confusion ($p < 0.0001$), demonstrating that the model's error structure mirrors \textit{raga} taxonomy.
 \end{enumerate}
 
-\noindent Generative AI tools were used to assist with report drafting and code debugging for clarity in the report; all technical decisions, experimental design, and analysis are entirely self-written. An extended appendix with additional figures, per-\textit{raga} feature visualisations, all confusion matrices, and negative experiment results accompanies this report.\footnote{Appendix: \href{https://git.cs.bham.ac.uk/projects-2025-26/kxk224/-/blob/main/EXTENDED_APPENDIX.pdf}{https://git.cs.bham.ac.uk/projects-2025-26/kxk224/FinalReport/EXTENDED\_APPENDIX.pdf}}
+\noindent Generative AI tools were used to assist with report drafting and code debugging for clarity in the report; all technical decisions, experimental design, and analysis are entirely self-written. An extended appendix with additional figures, per-\textit{raga} feature visualisations, all confusion matrices, and negative experiment results accompanies this report.\footnote{Appendix: \href{https://git.cs.bham.ac.uk/projects-2025-26/kxk224/-/blob/main/FinalReport/EXTENDED_APPENDIX.pdf}{https://git.cs.bham.ac.uk/projects-2025-26/kxk224/-/blob/main/FinalReport/EXTENDED\_APPENDIX.pdf}}
 
 % ── 2. Background ─────────────────────────────────────────
 \section{Background and Literature Review}
@@ -205,7 +205,7 @@ Ten SVM variants are trained across different feature combinations (one per feat
 
 A bidirectional LSTM baseline (2 layers, 64 hidden units, 32-dim embedding) provides a learned-representation comparison under identical GroupKFold splits. A two-level hierarchical classifier was also tested, routing segments first to melakarta family then disambiguating within-family, motivated by H4's prediction that confusion clusters within families; results are discussed in Section~\ref{sec:negative}.
 
-The pipeline is implemented in Python across six self-contained scripts with YAML configuration files, using librosa, torchcrepe, scikit-learn, PyTorch, mirdata, and NumPy/Pandas as core dependencies; full code and trained models are available in the GitLab repository. Experimental and failed feature variants (tonic ensemble methods, harmonic triad scoring, segment-level voting, swara-validated tonic selection, source separation via Demucs and HPSS, gamaka features, and hierarchical classification) are included in the \texttt{experiments/} folder under \texttt{carnatic\_scripts/}; results and analysis for these experiments are in the Appendix (H.1--H.2). A test pilot applying the same pipeline to Hindustani classical music (SARAGA Hindustani dataset) was also conducted as a cross-tradition generalisability probe for future work (see Appendix~H.3).
+The pipeline is implemented in Python across six self-contained scripts with YAML configuration files, using librosa, torchcrepe, scikit-learn, PyTorch, mirdata, and NumPy/Pandas as core dependencies; full code and trained models are available in the GitLab repository.\footnote{Repository: \href{https://git.cs.bham.ac.uk/projects-2025-26/kxk224/}{https://git.cs.bham.ac.uk/projects-2025-26/kxk224/}} Experimental and failed feature variants (tonic ensemble methods, harmonic triad scoring, segment-level voting, swara-validated tonic selection, source separation via Demucs and HPSS, gamaka features, and hierarchical classification) are included in the \texttt{experiments/} folder under \texttt{carnatic\_scripts/}; results and analysis for these experiments are in the Appendix (H.1--H.2). A test pilot applying the same pipeline to Hindustani classical music (SARAGA Hindustani dataset) was also conducted as a cross-tradition generalisability probe for future work (see Appendix~H.3).
 
 % ── 4. Results ────────────────────────────────────────────
 \section{Results and Evaluation}
@@ -222,28 +222,28 @@ Table~\ref{tab:results} presents the primary results under the 13-\textit{raga} 
 \caption{Classification results under estimated tonic (bad-tonic tracks excluded, 13 \textit{ragas}, 46 tracks). All models are SVM unless noted. Bold indicates best in column.}
 \label{tab:results}
 \small
-\begin{tabular}{@{}lrrrrrr@{}}
+\begin{tabular}{@{}lrrrrr@{}}
 \toprule
-\textbf{Feature} & \textbf{Dims} & \textbf{Seg Acc} & \textbf{Seg F1w} & \textbf{Trk Acc} & \textbf{Trk F1w} & \textbf{Trk F1m} \\
+\textbf{Feature} & \textbf{Dims} & \textbf{Seg Acc} & \textbf{Seg F1w} & \textbf{Trk Acc} & \textbf{Trk F1w} \\
 \midrule
-dwell\_vadi & 16 & 50.55 & 51.36 & 69.57 & \textbf{67.80} & -- \\
-fusion\_pitch & -- & 53.88 & 50.86 & 65.22 & 64.01 & -- \\
-trigram & 200 & 52.49 & 50.07 & 63.04 & 59.14 & -- \\
-trigram\_dwell & 216 & 52.79 & 50.41 & 60.87 & 57.20 & -- \\
-pcd\_trigram\_aux & 330 & 49.45 & 46.48 & 56.52 & 52.73 & -- \\
-pcd\_trigram & 320 & 50.42 & 47.69 & 56.52 & 51.89 & -- \\
-pcd & 120 & 45.51 & 43.56 & 52.17 & 49.61 & -- \\
-directional\_pcd & 408 & 47.82 & 45.79 & 52.17 & 49.08 & -- \\
-directional\_full & 418 & 47.15 & 44.97 & 52.17 & 49.08 & -- \\
-BiLSTM & -- & 26.94 & 27.17 & 39.13 & 36.39 & -- \\
-fourgram & 200 & 43.45 & 41.00 & 43.48 & 38.79 & -- \\
-phrase\_trigram & 200 & 28.82 & 20.97 & 8.70 & 2.80 & -- \\
-mfcc & 58 & 25.85 & 16.05 & 10.87 & 4.39 & -- \\
+dwell\_vadi & 16 & 50.55 & 51.36 & 69.57 & \textbf{67.80} \\
+fusion\_pitch & -- & 53.88 & 50.86 & 65.22 & 64.01 \\
+trigram & 200 & 52.49 & 50.07 & 63.04 & 59.14 \\
+trigram\_dwell & 216 & 52.79 & 50.41 & 60.87 & 57.20 \\
+pcd\_trigram\_aux & 330 & 49.45 & 46.48 & 56.52 & 52.73 \\
+pcd\_trigram & 320 & 50.42 & 47.69 & 56.52 & 51.89 \\
+pcd & 120 & 45.51 & 43.56 & 52.17 & 49.61 \\
+directional\_pcd & 408 & 47.82 & 45.79 & 52.17 & 49.08 \\
+directional\_full & 418 & 47.15 & 44.97 & 52.17 & 49.08 \\
+BiLSTM & -- & 26.94 & 27.17 & 39.13 & 36.39 \\
+fourgram & 200 & 43.45 & 41.00 & 43.48 & 38.79 \\
+phrase\_trigram & 200 & 28.82 & 20.97 & 8.70 & 2.80 \\
+mfcc & 58 & 25.85 & 16.05 & 10.87 & 4.39 \\
 \bottomrule
 \end{tabular}
 
 \smallskip
-\footnotesize{F1w = weighted F1; F1m = macro F1. All values are percentages. Full results with all tracks included (estimated tonic, no exclusion) are in the Appendix (G.5, Table~4). Ground-truth tonic results are in Section~G.6 (Table~5).}
+\footnotesize{F1w = weighted F1. All values are percentages. Full results with all tracks included (estimated tonic, no exclusion) are in the Appendix (G.5, Table~4). Ground-truth tonic results are in Section~G.6 (Table~5).}
 \end{table}
 
 Four patterns emerge. First, dwell\_vadi (16d) achieves the highest track-level weighted F1 (67.80\%) despite using $13\times$ fewer features than trigram\_dwell (216d, 57.20\%). Second, combining features beyond the cognitively motivated core hurts performance. Third, MFCC scores 4.39\% track F1w---near chance---analysed under H2. Fourth, the BiLSTM scores 36.39\% track F1w, providing a baseline for learned representations under identical evaluation. Phrase-aware trigrams and MFCC are separated below the line as failed baselines (Section~\ref{sec:negative}). Confusion matrices for all primary feature sets are in the Appendix (G.1, Figures~21--22), with additional feature variant confusion matrices in Section~G.2 (Figures~23--24).
@@ -291,16 +291,18 @@ The most informative failure was phrase-aware trigrams: splitting swara sequence
 
 \begin{table}[ht]
 \centering
-\caption{Effect of tonic source on classification accuracy. Feature rankings are preserved across all three conditions.}
+\caption{Effect of tonic source on classification accuracy and weighted F1. Feature rankings are preserved across all three conditions.}
 \label{tab:tonic}
 \small
-\begin{tabular}{@{}lrrrr@{}}
+\begin{tabular}{@{}lrrrrrrr@{}}
 \toprule
-\textbf{Condition} & \textbf{Tracks} & \textbf{tri\_dwell Seg} & \textbf{tri\_dwell Trk} & \textbf{dwell\_vadi Trk} \\
+ & & \multicolumn{3}{c}{\textbf{trigram\_dwell}} & \multicolumn{2}{c}{\textbf{dwell\_vadi}} \\
+\cmidrule(lr){3-5} \cmidrule(lr){6-7}
+\textbf{Condition} & \textbf{Tracks} & \textbf{Seg F1w} & \textbf{Trk Acc} & \textbf{Trk F1w} & \textbf{Trk Acc} & \textbf{Trk F1w} \\
 \midrule
-Ground truth & 53 & 60.18\% & 58.49\% & 52.83\% \\
-Estimated (bad excluded) & 46 & 52.79\% & 60.87\% & 69.57\% \\
-Estimated (all tracks) & 53 & 43.38\% & 56.60\% & 50.94\% \\
+Ground truth & 53 & 59.50\% & 58.49\% & 54.90\% & 52.83\% & 52.70\% \\
+Estimated (bad excluded) & 46 & 50.41\% & 60.87\% & 57.20\% & 69.57\% & 67.80\% \\
+Estimated (all tracks) & 53 & 41.46\% & 56.60\% & 56.21\% & 50.94\% & 45.21\% \\
 \bottomrule
 \end{tabular}
 
@@ -308,12 +310,12 @@ Estimated (all tracks) & 53 & 43.38\% & 56.60\% & 50.94\% \\
 \footnotesize{Full per-model results for estimated tonic (all tracks) are in the Appendix (G.5, Table~4). Ground-truth tonic results are in Section~G.6 (Table~5).}
 \end{table}
 
-Tonic estimation error, not feature design, is the primary bottleneck: a wrong tonic shifts every swara label by a fixed interval---Sa becomes Ri, Ri becomes Ga---producing an entirely fictitious melodic grammar that bears no relation to the actual \textit{raga}. Three scoring functions were evaluated (Figure~\ref{fig:tonic-methods}); the harmonic method was selected for its combination of highest accuracy (87.0\%) and lowest octave error rate (21.7\%). Removing 13 mis-estimated tracks (18\% of the dataset) recovers most accuracy. Feature rankings are preserved across all conditions, validating the methodology independently of tonic quality. MFCC remains near chance regardless of tonic source, confirming H2.
+Tonic estimation error, not feature design, is the primary bottleneck: a wrong tonic shifts every swara label by a fixed interval---Sa becomes Ri, Ri becomes Ga---producing an entirely fictitious melodic grammar that bears no relation to the actual \textit{raga}. Three scoring functions were evaluated (Figure~\ref{fig:tonic-methods}); the harmonic method was selected for its combination of highest accuracy (82.2\%) and lowest octave error rate (20.5\%). Removing 13 mis-estimated tracks (18\% of the dataset) recovers most accuracy. Feature rankings are preserved across all conditions, validating the methodology independently of tonic quality. MFCC remains near chance regardless of tonic source, confirming H2.
 
 \begin{figure}[ht]
 \centering
 \includegraphics[width=0.75\textwidth]{outputs/figures/tonic_validation/tonic_method_comparison.png}
-\caption{Tonic estimation method comparison. The harmonic scoring function achieves 82.2\% accuracy within 50 cents with the lowest octave error rate (21.7\%), motivating its selection as the primary tonic estimator.}
+\caption{Tonic estimation method comparison. The harmonic scoring function achieves 82.2\% accuracy within 50 cents with the lowest octave error rate (20.5\%), motivating its selection as the primary tonic estimator.}
 \label{fig:tonic-methods}
 \end{figure}
 
