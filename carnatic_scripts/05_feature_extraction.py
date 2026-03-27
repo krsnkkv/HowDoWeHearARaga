@@ -39,14 +39,36 @@ COGNITIVE / MUSICOLOGICAL RATIONALE:
     control: under H2 (Peretz & Coltheart's modular architecture), timbral
     features should fail because raga identity is structural, not timbral.
 
+INPUT:
+    - data/processed/swara_all.csv              (from Stage 4 — per-segment swara metadata)
+    - data/processed/swara/*_swara.npz          (from Stage 4 — per-segment swara traces: labels, cents, indices)
+    - data/processed/pitch/*.npz                (from Stage 2 — raw F0 for MFCC extraction)
+    - data/interim/*.wav                        (from Stage 1 — segment audio for MFCC extraction)
+    - configs/features.yaml                     (trigram vocab size, PCD bins, etc. if present)
+
+OUTPUT:
+    - data/processed/features/features_all.npz      — All feature vectors: one key per feature set (e.g., 'trigram', 'dwell_vadi', 'pcd', etc.)
+    - data/processed/features/features_meta.csv     — Per-segment metadata aligned with feature rows: track_id, raga, segment_index
+    - data/processed/features/trigram_vocab.txt      — The 200 trigrams selected (human-readable, e.g., "Sa_Ri2_Ga2")
+    - data/processed/features/fourgram_vocab.txt     — The 200 four-grams selected
+    - outputs/figures/features/pcd_{raga}.png         — Per-raga pitch class distribution histograms
+    - outputs/figures/features/transition_{raga}.png  — Per-raga 12×12 swara transition heatmaps
+    - outputs/figures/features/arohana_{raga}.png     — Per-raga ascending-only PCD
+    - outputs/figures/features/avarohana_{raga}.png   — Per-raga descending-only PCD
+
+TERMINAL OUTPUT:
+    - Segment count loaded
+    - Trigram vocabulary size and top trigrams
+    - Feature dimensions per family
+    - Per-raga plot generation progress
+    - Final summary: total segments, feature families extracted
+
 Usage:
     python carnatic_scripts/05_feature_extraction.py
-    python carnatic_scripts/05_feature_extraction.py --plot-n 5
+    python carnatic_scripts/05_feature_extraction.py --plot-n 20
 """
 import argparse
 from pathlib import Path
-from itertools import product as iter_product  # (unused right now) kept for quick future cartesian feature grids
-
 import numpy as np
 import pandas as pd
 import yaml
@@ -107,32 +129,48 @@ def get_swara_token_sequence(swara_labels: np.ndarray) -> list:
 # Hypothesis: glides mark phrase boundaries, so splitting there gives cleaner phrases.
 # Reality: Carnatic gamakas CONNECT notes across phrases, not separate them.
 #          Splitting fragments real phrases into pieces too short for trigrams.
-# Reverted — kept here as documentation of the negative result.
-#
-# def get_swara_token_sequence_phrase_aware(swara_labels: np.ndarray) -> list:
-#     """Split token sequence at glide boundaries (phrase-aware version)."""
-#     phrases = []
-#     current_phrase = []
-#     prev = None
-#     for label in swara_labels:
-#         if label in ("silence", "glide"):
-#             if current_phrase:
-#                 phrases.append(current_phrase)
-#                 current_phrase = []
-#             prev = None
-#             continue
-#         if label != prev:
-#             current_phrase.append(label)
-#             prev = label
-#     if current_phrase:
-#         phrases.append(current_phrase)
-#     # Flatten: each phrase is a separate sub-sequence
-#     # Trigrams only computed WITHIN phrases, not across glide boundaries
-#     tokens = []
-#     for phrase in phrases:
-#         tokens.extend(phrase)
-#         tokens.append("BREAK")  # marker to prevent cross-phrase trigrams
-#     return [t for t in tokens if t != "BREAK"]
+# Kept as implemented feature for completeness — documented negative result.
+
+def get_phrase_segments(swara_labels: np.ndarray) -> list:
+    """
+    Split swara labels into phrase segments at glide/silence boundaries.
+    Returns a list of phrases, where each phrase is a list of swara tokens
+    (collapsed, no repeats). Trigrams computed WITHIN phrases prevent
+    cross-boundary n-grams that don't reflect real melodic sequences.
+    """
+    phrases = []
+    current_phrase = []
+    prev = None
+    for label in swara_labels:
+        if label in ("silence", "glide"):
+            if current_phrase:
+                phrases.append(current_phrase)
+                current_phrase = []
+            prev = None
+            continue
+        if label != prev:
+            current_phrase.append(label)
+            prev = label
+    if current_phrase:
+        phrases.append(current_phrase)
+    return phrases
+
+
+def compute_phrase_ngrams(phrases: list, n: int) -> dict:
+    """
+    Compute n-grams within each phrase separately (no cross-phrase n-grams).
+    Returns normalised n-gram counts across all phrases.
+    """
+    counts = {}
+    for phrase in phrases:
+        for i in range(len(phrase) - n + 1):
+            gram = tuple(phrase[i:i + n])
+            if all(t in SWARA_TO_IDX for t in gram):
+                counts[gram] = counts.get(gram, 0) + 1
+    total = sum(counts.values())
+    if total > 0:
+        counts = {k: v / total for k, v in counts.items()}
+    return counts
 
 
 def compute_transition_matrix(tokens: list) -> np.ndarray:
@@ -506,6 +544,8 @@ def main():
     all_bigram_vecs = []
     all_pcd_vecs = []
     all_trigram_dicts = []
+    all_fourgram_dicts = []
+    all_phrase_trigram_dicts = []
     all_mfcc_vecs = []
     all_auxiliary_vecs = []
     all_arohana_vecs = []
@@ -542,6 +582,13 @@ def main():
         # trigrams (dict for now)
         # we build a global vocab after processing all segments
         all_trigram_dicts.append(compute_ngrams(tokens, 3))
+
+        # fourgrams (dict for now, same approach as trigrams)
+        all_fourgram_dicts.append(compute_ngrams(tokens, 4))
+
+        # phrase-aware trigrams (compute within glide-delimited phrases only)
+        phrases = get_phrase_segments(swara_labels)
+        all_phrase_trigram_dicts.append(compute_phrase_ngrams(phrases, 3))
 
         # pcd
         all_pcd_vecs.append(compute_pcd(cents_mod, bins_per_octave=120))
@@ -595,6 +642,36 @@ def main():
                 vec[trigram_to_idx[gram]] = count
         all_trigram_vecs.append(vec)
 
+    # --- Build fourgram vectors (shared vocabulary, top-200)
+    print("Building fourgram vocabulary...")
+    global_fourgrams = {}
+    for fd in all_fourgram_dicts:
+        for gram, count in fd.items():
+            global_fourgrams[gram] = global_fourgrams.get(gram, 0) + count
+
+    TOP_K_FOURGRAMS = 200
+    top_fourgrams = sorted(global_fourgrams.items(), key=lambda x: -x[1])[:TOP_K_FOURGRAMS]
+    fourgram_vocab = [gram for gram, _ in top_fourgrams]
+    fourgram_to_idx = {gram: i for i, gram in enumerate(fourgram_vocab)}
+
+    all_fourgram_vecs = []
+    for fd in all_fourgram_dicts:
+        vec = np.zeros(TOP_K_FOURGRAMS, dtype=np.float64)
+        for gram, count in fd.items():
+            if gram in fourgram_to_idx:
+                vec[fourgram_to_idx[gram]] = count
+        all_fourgram_vecs.append(vec)
+
+    # --- Build phrase-aware trigram vectors (uses same trigram vocab for comparability)
+    print("Building phrase-aware trigram vectors...")
+    all_phrase_trigram_vecs = []
+    for ptd in all_phrase_trigram_dicts:
+        vec = np.zeros(TOP_K_TRIGRAMS, dtype=np.float64)
+        for gram, count in ptd.items():
+            if gram in trigram_to_idx:
+                vec[trigram_to_idx[gram]] = count
+        all_phrase_trigram_vecs.append(vec)
+
     # --- Assemble matrices
     # convert python lists into dense numpy matrices (n_segments x n_features)
     meta_df = pd.DataFrame(meta_rows)
@@ -610,6 +687,8 @@ def main():
     directional_mat = np.hstack([arohana_mat, avarohana_mat])
     dwell_mat = np.array(all_dwell_vecs)
     vadi_mat = np.array(all_vadi_vecs)
+    fourgram_mat = np.array(all_fourgram_vecs)
+    phrase_trigram_mat = np.array(all_phrase_trigram_vecs)
 
     # combined feature sets
     # these are the exact bundles you can toggle in stage 6 training
@@ -650,6 +729,8 @@ def main():
     print(f"  Vadi:                  {vadi_mat.shape[1]}")
     print(f"  Dwell+Vadi:            {dwell_vadi.shape[1]}")
     print(f"  Trigram+Dwell+Vadi:    {trigram_dwell.shape[1]}")
+    print(f"  Fourgram (top-{TOP_K_FOURGRAMS}):    {fourgram_mat.shape[1]}")
+    print(f"  Phrase trigram:        {phrase_trigram_mat.shape[1]}")
 
     # --- Save
     # everything saved in one compressed npz so stage 6 can load fast
@@ -676,6 +757,8 @@ def main():
         vadi=vadi_mat,
         dwell_vadi=dwell_vadi,
         trigram_dwell=trigram_dwell,
+        fourgram=fourgram_mat,
+        phrase_trigram=phrase_trigram_mat,
         track_ids=meta_df["track_id"].values,
         ragas=meta_df["raga"].values,
         segment_indices=meta_df["segment_index"].values,
@@ -687,6 +770,11 @@ def main():
     # save trigram vocab for interpretability (and reproducibility)
     with open(feat_dir / "trigram_vocab.txt", "w", encoding="utf-8") as f:
         for gram in trigram_vocab:
+            f.write("→".join(gram) + "\n")
+
+    # save fourgram vocab
+    with open(feat_dir / "fourgram_vocab.txt", "w", encoding="utf-8") as f:
+        for gram in fourgram_vocab:
             f.write("→".join(gram) + "\n")
 
     print(f"\nSaved to: {feat_dir}")

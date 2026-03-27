@@ -37,9 +37,27 @@ COGNITIVE / MUSICOLOGICAL RATIONALE:
     trade-off noted as a limitation, since Carnatic ragas use raga-specific
     intonation.
 
+INPUT:
+    - data/processed/pitch_all.csv              (from Stage 2 — segment metadata + pitch file paths)
+    - data/processed/pitch/*.npz                (from Stage 2 — per-segment F0 arrays)
+    - data/processed/tonic_validation.csv       (from Stage 3 — estimated tonic per track, used by default)
+    - configs/swara.yaml                        (tolerance_cents, min_duration_ms, bin definitions)
+
+OUTPUT:
+    - data/processed/swara_all.csv              — Per-segment: track_id, raga, sa_hz_used, tonic_source, glide_ratio, top_swara, unique_swaras
+    - data/processed/swara/*_swara.npz          — Per-segment arrays: swara_labels, swara_indices, cents_mod, distances, sa_hz
+    - outputs/figures/swara_debug/*_swara.png   — Diagnostic plots (pitch contour + colour-coded swara labels) for first N segments
+
+TERMINAL OUTPUT:
+    - Tonic source confirmation (ESTIMATED or GROUND TRUTH)
+    - Segment count and progress bar
+    - Glide ratio mean/median across all segments
+    - Average unique swaras per segment
+    - Most common top swara per segment (e.g., Sa: 1258, Pa: 739)
+
 Usage:
     python carnatic_scripts/04_swara_mapping.py
-    python carnatic_scripts/04_swara_mapping.py --use-estimated
+    python carnatic_scripts/04_swara_mapping.py --use-gt
     python carnatic_scripts/04_swara_mapping.py --plot-n 10
 """
 import argparse

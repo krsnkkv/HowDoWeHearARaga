@@ -50,7 +50,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import yaml  # (unused rn) kept for config consistency with other stages
 import matplotlib
 matplotlib.use("Agg")  # headless backend for saving plots without a display
 import matplotlib.pyplot as plt
@@ -63,7 +62,6 @@ from sklearn.metrics import classification_report, confusion_matrix, accuracy_sc
 from sklearn.pipeline import Pipeline           # Chain scaler + SVM together
 from sklearn.base import clone                  # Copy a model for each fold
 
-from tqdm import tqdm  # (unused rn) but handy if you add progress bars later
 
 
 def repo_root() -> Path:
@@ -829,6 +827,11 @@ def main():
     parser.add_argument("--exclude-tracks", type=str, default=None,
                         help="Comma-separated track_id prefixes to exclude "
                              "(e.g. '157_,166_,91_' to drop bad-tonic tracks)")
+    parser.add_argument("--run-mode", type=str, choices=["est", "excl-est", "gt"],
+                        default="est",
+                        help="Run mode: 'est' = all estimated tonic, "
+                             "'excl-est' = estimated with bad tracks excluded, "
+                             "'gt' = ground-truth tonic")
     args = parser.parse_args()
 
     root = repo_root()
@@ -839,6 +842,16 @@ def main():
         min_voiced_ratio=args.min_voiced_ratio,
         min_segments_per_raga=args.min_segments_per_raga,
     )
+
+    # --- auto-exclude bad tonic tracks when run-mode is excl-est
+    if args.run_mode == "excl-est" and not args.exclude_tracks:
+        tonic_csv = root / "data" / "processed" / "tonic_validation.csv"
+        if tonic_csv.exists():
+            tonic_df = pd.read_csv(tonic_csv)
+            bad = tonic_df[tonic_df["within_50_cents"] == False]["track_id"].tolist()
+            no_est = tonic_df[tonic_df["estimated_tonic_hz"].isna()]["track_id"].tolist()
+            args.exclude_tracks = ",".join(set(bad + no_est))
+            print(f"[excl-est] Auto-excluding {len(set(bad + no_est))} bad-tonic tracks")
 
     # --- optional: exclude specific tracks (e.g. bad tonic estimates)
     if args.exclude_tracks:
@@ -873,9 +886,11 @@ def main():
     print(f"Dataset: {len(y)} segments, {len(label_names)} ragas, "
           f"{len(np.unique(groups))} tracks")
 
-    # --- output dirs
+    # --- output dirs (subfolder per run mode)
+    _run_tag = args.run_mode  # "est", "excl-est", or "gt"
+
     model_dir = root / "models"
-    fig_dir = root / "outputs" / "figures" / "classification"
+    fig_dir = root / "outputs" / "figures" / "classification" / _run_tag
     results_dir = root / "outputs" / "results"
     ensure_dir(model_dir)
     ensure_dir(fig_dir)
@@ -906,6 +921,9 @@ def main():
         # new: sustain & emphasis features
         "dwell_vadi",
         "trigram_dwell",
+        # n-gram variants
+        "fourgram",
+        "phrase_trigram",
         # audio baseline
         "mfcc",
         # directional transition features
@@ -1002,7 +1020,8 @@ def main():
         if "best_params" in res:
             summary[name]["best_params"] = {k: str(v) for k, v in res["best_params"].items()}
 
-    results_json = results_dir / "classification_results.json"
+    # --- JSON named by run mode
+    results_json = results_dir / f"classification_results_{_run_tag}.json"
     with open(results_json, "w", encoding="utf-8") as f:
         json.dump(summary, f, indent=2, ensure_ascii=False)
 

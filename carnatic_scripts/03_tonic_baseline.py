@@ -36,8 +36,28 @@ COGNITIVE / MUSICOLOGICAL RATIONALE:
     polyphonic source confusion that also challenges human listeners in
     instrumental passages.
 
+INPUT:
+    - data/processed/pitch_all.csv         (from Stage 2 — segment metadata + pitch file paths)
+    - data/processed/pitch/*.npz           (from Stage 2 — per-segment F0 arrays)
+    - configs/tonic.yaml                   (candidate_min_hz, candidate_max_hz, step_cents, bins_per_octave)
+
+OUTPUT:
+    - data/processed/tonic_validation.csv            — Per-track: estimated_tonic_hz, gt_tonic_hz, cents_error, within_50_cents
+    - data/processed/tonic_validation_{method}.csv   — Per-method results when using --method compare
+    - outputs/figures/tonic_validation/tonic_error_histogram.png         — Error distribution histogram
+    - outputs/figures/tonic_validation/tonic_error_histogram_{method}.png — Per-method histograms
+    - outputs/figures/tonic_validation/tonic_method_comparison.png       — Bar chart comparing all methods
+
+TERMINAL OUTPUT:
+    - Per-method: tracks evaluated, within-50-cents accuracy (%), octave errors (%), median/mean error
+    - Worst 5 estimates with track_id, estimated vs GT Hz, error in cents, raga
+    - Head-to-head comparison table when using --method compare
+
 Usage:
-    python carnatic_scripts/03_tonic_estimation.py
+    python carnatic_scripts/03_tonic_baseline.py
+    python carnatic_scripts/03_tonic_baseline.py --method compare
+    python carnatic_scripts/03_tonic_baseline.py --method smoothed_harmonic
+    python carnatic_scripts/03_tonic_baseline.py --use-vocal
 """
 import argparse
 from pathlib import Path

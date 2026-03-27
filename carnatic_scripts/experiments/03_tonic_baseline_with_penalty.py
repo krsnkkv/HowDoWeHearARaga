@@ -27,30 +27,50 @@ COGNITIVE / MUSICOLOGICAL RATIONALE:
     improvement, confirming that the simpler Sa+Pa scoring already captures the
     dominant cue.
 
+INPUT:
+    - data/processed/pitch_all.csv         (from stage 2 — segment metadata + pitch file paths)
+    - data/processed/pitch/*.npz           (from stage 2 — per-segment f0 arrays)
+    - configs/tonic.yaml                   (candidate range, step size, bins per octave)
+
+OUTPUT:
+    - data/processed/tonic_validation_triad.csv                        — per-track validation results
+    - data/processed/tonic_validation_{method}_triad.csv               — per-method results when using --method compare
+    - outputs/figures/tonic_validation/tonic_error_histogram_triad.png  — error distribution histogram
+
 Usage:
-    python carnatic_scripts/03_tonic_baseline_with_penalty.py
-    python carnatic_scripts/03_tonic_baseline_with_penalty.py --method compare
+    python carnatic_scripts/experiments/03_tonic_baseline_with_penalty.py
+    python carnatic_scripts/experiments/03_tonic_baseline_with_penalty.py --method compare
 """
+# cli argument parsing
 import argparse
+# filesystem path handling
 from pathlib import Path
 
+# numerical computing
 import numpy as np
+# dataframe operations
 import pandas as pd
+# yaml config file loading
 import yaml
+# plotting backend (headless, no gui needed)
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+# progress bar for loops
 from tqdm import tqdm
 
 
+# find the repo root (two levels up from experiments/)
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+# create directory if it doesn't exist
 def ensure_dir(p: Path) -> None:
     p.mkdir(parents=True, exist_ok=True)
 
 
+# load yaml config file into a dict
 def load_cfg(cfg_path: str) -> dict:
     with open(cfg_path, "r", encoding="utf-8") as f:
         return yaml.safe_load(f)
@@ -58,10 +78,12 @@ def load_cfg(cfg_path: str) -> dict:
 
 # -- Core functions --
 
+# convert hz frequencies to cents relative to a reference frequency
 def hz_to_cents(f_hz: np.ndarray, ref_hz: float) -> np.ndarray:
     return 1200.0 * np.log2(f_hz / ref_hz)
 
 
+# build a normalised pitch-class histogram folded into one octave (120 bins = 10-cent resolution)
 def pitch_class_histogram(f0_hz: np.ndarray, tonic_hz: float,
                           bins_per_octave: int = 120) -> np.ndarray:
     f0 = f0_hz[np.isfinite(f0_hz) & (f0_hz > 0)]
@@ -78,6 +100,7 @@ def pitch_class_histogram(f0_hz: np.ndarray, tonic_hz: float,
     return hist
 
 
+# sum histogram mass in a window around a target cent position (handles circular wrapping)
 def get_mass_around_bin(hist: np.ndarray, center_cents: float,
                         window_cents: float = 30.0,
                         bins_per_octave: int = 120) -> float:
@@ -93,6 +116,7 @@ def get_mass_around_bin(hist: np.ndarray, center_cents: float,
 
 # -- Scoring methods --
 
+# original baseline: score by sa region mass only (+/- 30 cents around 0)
 def tonic_score_sa_only(hist: np.ndarray, bins_per_octave: int = 120) -> float:
     """Original: Sa mass only."""
     if hist.sum() <= 0:
@@ -101,6 +125,7 @@ def tonic_score_sa_only(hist: np.ndarray, bins_per_octave: int = 120) -> float:
                                bins_per_octave=bins_per_octave)
 
 
+# improved baseline: sa mass + weighted pa mass (exploits tanpura drone sa+pa)
 def tonic_score_harmonic(hist: np.ndarray, bins_per_octave: int = 120,
                           pa_weight: float = 0.5) -> float:
     """Baseline improved: Sa + Pa."""
@@ -113,6 +138,7 @@ def tonic_score_harmonic(hist: np.ndarray, bins_per_octave: int = 120,
     return float(sa_mass + pa_weight * pa_mass)
 
 
+# triad scoring: sa + ma + pa weighted combination — uses all three tanpura harmonics
 def tonic_score_triad(hist: np.ndarray, bins_per_octave: int = 120,
                        pa_weight: float = 0.8, ma_weight: float = 0.6) -> float:
     """
@@ -145,13 +171,14 @@ def tonic_score_triad(hist: np.ndarray, bins_per_octave: int = 120,
     pa_mass = get_mass_around_bin(hist, 702.0, window_cents=30.0,
                                   bins_per_octave=bins_per_octave)
 
-    # Pure weighted support -- no penalty
-    # Sa gets full weight, Pa and Ma provide harmonic evidence
+    # pure weighted support -- no penalty
+    # sa gets full weight, pa and ma provide harmonic evidence
     combined = sa_mass + (pa_weight * pa_mass) + (ma_weight * ma_mass)
 
     return float(combined)
 
 
+# triad scoring with gaussian smoothing applied first to handle gamaka spread
 def tonic_score_triad_smoothed(hist: np.ndarray, bins_per_octave: int = 120,
                                 pa_weight: float = 0.8, ma_weight: float = 0.6,
                                 sigma_bins: float = 2.0) -> float:
@@ -160,10 +187,12 @@ def tonic_score_triad_smoothed(hist: np.ndarray, bins_per_octave: int = 120,
     if hist.sum() <= 0:
         return 0.0
     n = len(hist)
+    # circular padding to avoid edge effects
     padded = np.concatenate([hist[-int(3*sigma_bins):], hist, hist[:int(3*sigma_bins)]])
     smoothed = gaussian_filter1d(padded, sigma=sigma_bins, mode='nearest')
     pad_len = int(3 * sigma_bins)
     result = smoothed[pad_len:pad_len + n]
+    # re-normalise after smoothing
     s = result.sum()
     if s > 0:
         result = (result / s).astype(np.float32)
@@ -172,6 +201,8 @@ def tonic_score_triad_smoothed(hist: np.ndarray, bins_per_octave: int = 120,
     return tonic_score_triad(result, bins_per_octave, pa_weight, ma_weight)
 
 
+# search for the best tonic candidate in [candidate_min, candidate_max] hz
+# steps in cents for musically uniform spacing, tests octave alternatives after
 def estimate_tonic(f0_hz: np.ndarray,
                    candidate_min: float = 80.0,
                    candidate_max: float = 300.0,
@@ -192,7 +223,7 @@ def estimate_tonic(f0_hz: np.ndarray,
     if f0.size < min_voiced_frames:
         return float("nan"), 0.0, 0.0, 0.0, method
 
-    # Choose scoring function
+    # choose scoring function based on method name
     if method == "triad":
         score_fn = lambda h: tonic_score_triad(h, bins_per_octave, pa_weight, ma_weight)
     elif method == "triad_smoothed":
@@ -202,6 +233,7 @@ def estimate_tonic(f0_hz: np.ndarray,
     else:
         score_fn = lambda h: tonic_score_sa_only(h, bins_per_octave)
 
+    # sweep candidates in log-frequency space
     cents_range = 1200.0 * np.log2(candidate_max / candidate_min)
     n_steps = int(np.floor(cents_range / step_cents)) + 1
 
@@ -221,7 +253,7 @@ def estimate_tonic(f0_hz: np.ndarray,
     best_score, best_hz = best
     second_score, _ = second
 
-    # Octave correction
+    # octave correction: test 2x and 0.5x to resolve octave ambiguity
     for alt_hz in [best_hz * 2.0, best_hz / 2.0]:
         if 60.0 <= alt_hz <= 600.0:
             hist_alt = pitch_class_histogram(f0, alt_hz, bins_per_octave)
@@ -231,6 +263,7 @@ def estimate_tonic(f0_hz: np.ndarray,
                 best_score = score_alt
                 best_hz = alt_hz
 
+    # confidence = gap between best and second-best (higher = more decisive)
     conf = 0.0 if best_score <= 0 else float(
         (best_score - second_score) / (best_score + 1e-9)
     )
@@ -240,12 +273,14 @@ def estimate_tonic(f0_hz: np.ndarray,
 
 # -- Validation helpers --
 
+# absolute error in cents between estimated and ground-truth tonic
 def cents_error(estimated_hz: float, gt_hz: float) -> float:
     if np.isnan(estimated_hz) or np.isnan(gt_hz) or estimated_hz <= 0 or gt_hz <= 0:
         return float("nan")
     return abs(1200.0 * np.log2(estimated_hz / gt_hz))
 
 
+# cents error after folding into the nearest octave (ignores octave mistakes)
 def octave_corrected_cents_error(estimated_hz: float, gt_hz: float) -> float:
     if np.isnan(estimated_hz) or np.isnan(gt_hz) or estimated_hz <= 0 or gt_hz <= 0:
         return float("nan")
@@ -256,6 +291,7 @@ def octave_corrected_cents_error(estimated_hz: float, gt_hz: float) -> float:
     return abs(folded)
 
 
+# check if the error is specifically an octave error (large raw but small octave-corrected)
 def is_octave_error(estimated_hz: float, gt_hz: float,
                      threshold_cents: float = 50.0) -> bool:
     if np.isnan(estimated_hz) or np.isnan(gt_hz):
@@ -265,6 +301,7 @@ def is_octave_error(estimated_hz: float, gt_hz: float,
     return raw_error > 600 and oc_error < threshold_cents
 
 
+# plot side-by-side histograms of raw and octave-corrected tonic errors
 def plot_validation_summary(val_df: pd.DataFrame, out_path: Path):
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     errors = val_df["cents_error"].dropna()
@@ -288,6 +325,8 @@ def plot_validation_summary(val_df: pd.DataFrame, out_path: Path):
     plt.close(fig)
 
 
+# run tonic estimation for all tracks using a specific scoring method
+# pools f0 across segments per track, estimates tonic, validates against ground truth
 def run_estimation(df, root, candidate_min, candidate_max, step_cents,
                    bins_per_octave, min_voiced, method, pa_weight, ma_weight):
     rows = []
@@ -297,6 +336,7 @@ def run_estimation(df, root, candidate_min, candidate_max, step_cents,
         gt_tonic = group["gt_tonic_hz"].iloc[0]
         raga = group["raga"].iloc[0]
 
+        # load and concatenate f0 from all segments for this track
         for _, seg_row in group.iterrows():
             npz_path = root / seg_row["pitch_npz"]
             data = np.load(npz_path)
@@ -325,6 +365,7 @@ def run_estimation(df, root, candidate_min, candidate_max, step_cents,
             )
             n_frames = int(f0_concat.size)
 
+        # compute validation metrics against ground truth
         raw_error = cents_error(est_hz, gt_tonic)
         oc_error = octave_corrected_cents_error(est_hz, gt_tonic)
 
@@ -348,6 +389,7 @@ def run_estimation(df, root, candidate_min, candidate_max, step_cents,
     return pd.DataFrame(rows)
 
 
+# print and return summary statistics for a set of tonic validation results
 def print_summary(val_df: pd.DataFrame, method_name: str) -> dict:
     valid = val_df.dropna(subset=["cents_error"])
     n_total = len(valid)
@@ -371,6 +413,7 @@ def print_summary(val_df: pd.DataFrame, method_name: str) -> dict:
     print(f"Mean error (oc):               {valid['octave_corrected_cents_error'].mean():.1f} cents")
     print(f"{'='*60}")
 
+    # show worst 5 estimates for debugging
     print(f"\nWorst 5 estimates (octave-corrected):")
     worst = valid.nlargest(5, "octave_corrected_cents_error")
     for _, r in worst.iterrows():
@@ -388,6 +431,7 @@ def print_summary(val_df: pd.DataFrame, method_name: str) -> dict:
     }
 
 
+# main entry point: parse args, load data, run estimation, compare vs baseline
 def main():
     parser = argparse.ArgumentParser(
         description="Tonic estimation with Sa+Ma+Pa triad scoring and ratio penalty")
@@ -402,6 +446,7 @@ def main():
 
     root = repo_root()
 
+    # load tonic config (candidate range, step size, etc.)
     tonic_cfg_path = root / "configs" / "tonic.yaml"
     if tonic_cfg_path.exists():
         tcfg = load_cfg(str(tonic_cfg_path))
@@ -414,6 +459,7 @@ def main():
     bins_per_octave = int(tcfg.get("bins_per_octave", 120))
     min_voiced = int(tcfg.get("min_voiced_frames", 200))
 
+    # load pitch data from stage 2
     pitch_csv = root / "data" / "processed" / "pitch_all.csv"
     if not pitch_csv.exists():
         raise FileNotFoundError(f"Missing: {pitch_csv}. Run 02_pitch_extraction.py first.")
@@ -425,6 +471,7 @@ def main():
     fig_dir = root / "outputs" / "figures" / "tonic_validation"
     ensure_dir(fig_dir)
 
+    # determine which methods to run (single or all for comparison)
     if args.method == "compare":
         methods_to_run = ["sa_mass", "harmonic", "triad", "triad_smoothed"]
     else:
@@ -440,6 +487,7 @@ def main():
             bins_per_octave, min_voiced, method, args.pa_weight, args.ma_weight,
         )
 
+        # save results csv and error histogram
         suffix = f"_{method}_triad" if len(methods_to_run) > 1 else "_triad"
         out_csv = out_dir / f"tonic_validation{suffix}.csv"
         val_df.to_csv(out_csv, index=False)
@@ -452,7 +500,7 @@ def main():
         comparison_results[method] = stats
         print(f"Results saved to: {out_csv}")
 
-    # Compare against baseline
+    # compare against the baseline harmonic (sa+pa) method
     baseline_csv = out_dir / "tonic_validation.csv"
     if baseline_csv.exists():
         baseline_df = pd.read_csv(baseline_csv)
@@ -471,7 +519,7 @@ def main():
                   f"octave_err={stats['octave_errors']:.1f}%, "
                   f"mean_oc={stats['median_oc']:.1f}c")
 
-        # Track-level comparison for the primary method
+        # track-level comparison: which tracks improved or regressed vs baseline
         primary_method = methods_to_run[0] if len(methods_to_run) == 1 else "triad"
         primary_suffix = f"_{primary_method}_triad" if len(methods_to_run) > 1 else "_triad"
         primary_csv = out_dir / f"tonic_validation{primary_suffix}.csv"

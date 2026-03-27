@@ -11,15 +11,6 @@ WHAT THIS SCRIPT DOES:
     paths. The minimum-tracks-per-raga filter ensures every raga has enough data
     for GroupKFold cross-validation downstream.
 
-LOGIC AND DESIGN:
-    The 45-second window was chosen to guarantee sufficient melodic content for
-    stable trigram distributions (~200 tokens per segment). The 15-second hop
-    increases training data without causing data leakage under GroupKFold, since
-    all segments from a track stay in the same fold. Two-stage filtering first
-    validates individual tracks (candidate stage), then retains only ragas with
-    enough tracks for cross-validation. Class imbalance (up to 14.6:1) is noted
-    here but handled downstream via class-weighted SVMs.
-
 COGNITIVE / MUSICOLOGICAL RATIONALE:
     Overlapping segmentation mirrors how listeners experience a performance as a
     continuous stream rather than isolated snapshots. Each 45-second window
@@ -28,6 +19,20 @@ COGNITIVE / MUSICOLOGICAL RATIONALE:
     characteristic phrase patterns. The exclusion of Ragamalika (multi-raga
     compositions) reflects the cognitive assumption that raga identity is stable
     within a performance.
+
+INPUT:
+    - Saraga Carnatic dataset (via mirdata, stored in data/raw/mirdata/)
+    - configs/preprocessing.yaml (sample_rate, segment_seconds, hop_seconds, trim_silence)
+
+OUTPUT:
+    - data/interim/*.wav           — Individual 45-second segment audio files
+    - data/processed/segments_saraga_carnatic.csv — Metadata: track_id, raga, gt_tonic_hz,
+                                                     segment_index, start_s, end_s, path
+
+TERMINAL OUTPUT:
+    - Total tracks found, usable tracks after filtering, ragas retained
+    - Per-raga track counts
+    - Total segments written, per-raga segment counts
 
 Usage:
     python carnatic_scripts/01_preprocess.py
@@ -55,7 +60,7 @@ def load_cfg(cfg_path: str) -> dict:
 def repo_root() -> Path:
     return Path(__file__).resolve().parents[1]
 
-#Ensuresa directory exists - creates parent folders if folde rdoesnt exist
+#Ensuresa directory exists - creates parent folders if folder doesnt exist
 def ensure_dirs(*paths: Path) -> None:
     for p in paths:
         p.mkdir(parents=True, exist_ok=True)

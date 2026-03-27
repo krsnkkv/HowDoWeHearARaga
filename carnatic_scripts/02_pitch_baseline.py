@@ -32,10 +32,20 @@ COGNITIVE / MUSICOLOGICAL RATIONALE:
     gamakas are the continuous pitch movements that give Carnatic melody its
     characteristic expressiveness (Krishnaswamy, 2003).
 
-OUTPUTS:
-    - data/processed/pitch/pitch_all.csv  # Summary of all segments + pitch stats
-    - data/processed/pitch/*.npz          # Per-segment pitch arrays
-    - outputs/figures/pitch_debug/*.png   # Diagnostic plots for first N segments
+INPUT:
+    - data/processed/segments_saraga_carnatic.csv  (from Stage 1)
+    - data/interim/*.wav                           (segment audio files from Stage 1)
+    - configs/pitch.yaml                           (hop_length, fmin_note, fmax_note)
+
+OUTPUT:
+    - data/processed/pitch_all.csv        — One row per segment: track_id, raga, voiced_ratio, f0_median_hz, pitch_npz path
+    - data/processed/pitch/*.npz          — Per-segment arrays: f0, voiced_flag, voiced_prob, sr, hop_length
+    - outputs/figures/pitch_debug/*.png   — Diagnostic plots (pitch contour + confidence) for first N segments
+
+TERMINAL OUTPUT:
+    - Device info (GPU name or CPU fallback warning)
+    - Segment count and progress bar
+    - Voiced ratio mean/median across all segments
 
 Usage:
     python carnatic_scripts/02_pitch_extraction.py

@@ -19,12 +19,22 @@ COGNITIVE / MUSICOLOGICAL RATIONALE:
     corpora) because it provides raga labels, ground-truth tonic annotations,
     and full audio — all three are required for the pipeline's interpretable
     feature extraction approach.
+
+INPUT:
+    none — downloads data from the mirdata remote source
+
+OUTPUT:
+    data/raw/mirdata/  — downloaded saraga_carnatic dataset on disk
+    stdout             — track count, sample rate, and duration for the first track
 """
+# filesystem path and environment variable handling
 import os
+# music information retrieval dataset loader
 import mirdata
 
 DATASET_NAME = "saraga_carnatic"
 
+# download, validate, and smoke-test the saraga carnatic dataset
 def main():
     # Put dataset files inside your repo's data/raw folder
     repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
