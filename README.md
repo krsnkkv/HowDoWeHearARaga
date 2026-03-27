@@ -80,8 +80,14 @@ data/
 
 outputs/
   results/                   # Classification results JSON, H4 permutation results
-  figures/                   # Confusion matrices, model comparison, feature plots
-    classification/          # est/, excl-est/, gt/ (by tonic condition), gamaka/, previous_runs/
+    old_backup/              # Archived earlier classification and hierarchical runs
+  figures/
+    classification/          # Confusion matrices and model comparison charts
+      est/                   # Estimated tonic, all tracks
+      excl-est/              # Estimated tonic, bad-tonic tracks excluded (primary)
+      gt/                    # Ground-truth tonic
+      gamaka/                # Gamaka feature experiments
+      previous_runs/         # Archived earlier feature combination runs
     features/                # Per-raga PCDs, transition matrices, directional PCDs
     tonic_validation/        # Tonic error histograms, method comparison
     pitch_debug/             # CREPE F0 contour diagnostics
