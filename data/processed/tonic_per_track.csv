@@ -1,0 +1,2 @@
+track_id,sa_hz,confidence,best_score,second_score,n_f0_frames,avg_voiced_ratio,avg_f0_median_hz,n_segments_used
+0_Dorakuna,146.72064691274738,0.0,0.25508541226569553,0.25508541226569553,74147,0.9564886480908152,255.26815580446186,20
